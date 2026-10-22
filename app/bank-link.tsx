@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { ComponentProps, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
 import type { LinkExit, LinkSuccess } from 'react-native-plaid-link-sdk';
 
 import { Button, Card, Field, List, Row, Screen, Text } from '@/components/ds';
 import { space } from '@/constants/theme';
+import { featureFlags } from '@/lib/config/env';
 import { isExpoGo } from '@/lib/config/runtime';
 import { banking, PlaidExchangeResponse } from '@/lib/supabase/banking';
 import { useAppTheme } from '@/providers/app-theme-provider';
@@ -35,7 +36,16 @@ function plural(count: number, noun: string) {
 }
 
 /** One job: pick a bank and link it read-only through Plaid. */
-export default function BankLinkScreen() {
+/** Bank sync is off for v1; deep links land on Home instead of a dead screen. */
+export default function BankLinkScreenRoute() {
+  if (!featureFlags.bankSync) {
+    return <Redirect href="/dashboard" />;
+  }
+
+  return <BankLinkScreen />;
+}
+
+function BankLinkScreen() {
   const router = useRouter();
   const { theme } = useAppTheme();
   const { actions } = useLedger();

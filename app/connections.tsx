@@ -1,9 +1,10 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Amount, Button, Card, EmptyState, List, ProGate, Row, Screen, Section, Text, useFeature } from '@/components/ds';
 import { space } from '@/constants/theme';
+import { featureFlags } from '@/lib/config/env';
 import { formatFullDate } from '@/lib/formatters';
 import { banking, LinkedBankAccount, LinkedBankConnection } from '@/lib/supabase/banking';
 import { useAppTheme } from '@/providers/app-theme-provider';
@@ -22,7 +23,16 @@ function connectionStatus(connection: LinkedBankConnection) {
 }
 
 /** One job: see which banks are linked, and link another. Pull down to sync. */
-export default function ConnectionsScreen() {
+/** Bank sync is off for v1; deep links land on Home instead of a dead screen. */
+export default function ConnectionsScreenRoute() {
+  if (!featureFlags.bankSync) {
+    return <Redirect href="/dashboard" />;
+  }
+
+  return <ConnectionsScreen />;
+}
+
+function ConnectionsScreen() {
   const router = useRouter();
   const { theme } = useAppTheme();
   const { actions, usingLiveBackend } = useLedger();

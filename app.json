@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Lancer",
-    "slug": "ledgerpilot",
+    "slug": "lancer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ledgerpilot",
+    "scheme": "lancer",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "runtimeVersion": {
@@ -17,10 +17,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ledgerpilot.app"
+      "bundleIdentifier": "com.ibegideon.lancer"
     },
     "android": {
-      "package": "com.ledgerpilot.app",
+      "package": "com.ibegideon.lancer",
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

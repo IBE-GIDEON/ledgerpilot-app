@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/account/avatar';
 import { Card, List, PageHeader, Row, Screen, Text } from '@/components/ds';
 import { space } from '@/constants/theme';
+import { featureFlags } from '@/lib/config/env';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 
@@ -89,7 +90,9 @@ export default function AccountScreen() {
           title="Payment method"
           value={paymentLabels[access.paymentMethodStatus]}
         />
-        <Row chevron icon="link-outline" onPress={() => router.push('/connections')} title="Connected accounts" />
+        {featureFlags.bankSync ? (
+          <Row chevron icon="link-outline" onPress={() => router.push('/connections')} title="Connected accounts" />
+        ) : null}
         <Row chevron icon="notifications-outline" onPress={() => router.push('/notifications')} title="Notifications" />
       </List>
 

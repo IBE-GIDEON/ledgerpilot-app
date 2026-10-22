@@ -82,7 +82,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
 
     initStripe({
       publishableKey: env.stripePublishableKey,
-      urlScheme: 'ledgerpilot',
+      urlScheme: 'lancer',
     }).catch((error) => {
       console.warn('Stripe failed to initialize:', error);
     });

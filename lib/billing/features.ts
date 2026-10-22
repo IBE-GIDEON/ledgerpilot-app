@@ -1,3 +1,4 @@
+import { featureFlags } from '@/lib/config/env';
 import type { PlanTier } from '@/types/ledger';
 
 /** Paid capabilities and the lowest plan that includes each one. */
@@ -69,7 +70,7 @@ export const plans: {
     monthly: '$19',
     annual: '$159',
     summary: 'Everything automatic, with tax handled every quarter.',
-    features: ['Bank sync', 'Receipt scanning', 'Quarterly tax', 'Auto mileage'],
+    features: [...(featureFlags.bankSync ? ['Bank sync'] : []), 'Receipt scanning', 'Quarterly tax', 'Auto mileage'],
   },
   {
     tier: 'Tax+',

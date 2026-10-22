@@ -40,6 +40,7 @@ import { ReceiptRow } from '@/components/money/receipt-row';
 import { TransactionRow } from '@/components/money/transaction-row';
 import { photos } from '@/constants/images';
 import { space } from '@/constants/theme';
+import { featureFlags } from '@/lib/config/env';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 import { Receipt, Transaction } from '@/types/ledger';
@@ -278,7 +279,7 @@ export default function MoneyScreen() {
         ))}
       </ScrollView>
 
-      {hasLinkedAccount ? null : (
+      {hasLinkedAccount || !featureFlags.bankSync ? null : (
         <ProGate feature="bankSync">
           <List>
             <Row chevron icon="business-outline" onPress={() => router.push('/connections')} title="Connect bank" />

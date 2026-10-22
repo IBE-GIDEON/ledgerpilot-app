@@ -25,6 +25,12 @@ export const env = {
   revenueCatTaxPlusProductId: readPublicEnv('EXPO_PUBLIC_REVENUECAT_TAXPLUS_PRODUCT_ID') ?? '',
 } as const;
 
+/** Features that ship turned off until their outside service is approved. */
+export const featureFlags = {
+  // Plaid production access takes weeks; v1 launches with manual entry only.
+  bankSync: readPublicEnv('EXPO_PUBLIC_BANK_SYNC') === 'on',
+} as const;
+
 export const usingSupabaseBackend =
   env.backendMode === 'supabase' &&
   Boolean(env.supabaseUrl) &&

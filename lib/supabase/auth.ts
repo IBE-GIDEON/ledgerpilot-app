@@ -17,7 +17,7 @@ export function isExpoGoAuthSession() {
 
 export function getAuthRedirectUrl() {
   return makeRedirectUri({
-    scheme: 'ledgerpilot',
+    scheme: 'lancer',
     path: 'auth/callback',
   });
 }
