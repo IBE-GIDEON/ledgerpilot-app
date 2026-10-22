@@ -27,8 +27,20 @@ export const expenseCategories = [
 
 export const incomeCategories = ['Income', 'Client payment', 'Freelance', 'Salary'] as const;
 
+/** A real account before onboarding fills it in: no made-up name, role or state. */
 export const defaultProfile: UserProfile = {
-  id: 'user-1',
+  id: '',
+  name: '',
+  role: '',
+  homeState: '',
+  incomeStyle: 'Mixed payouts',
+  primaryFocus: 'Everything in one place',
+  mileageMode: 'Sometimes',
+};
+
+/** The sample person shown only in "Explore the demo". */
+export const demoProfile: UserProfile = {
+  id: 'demo',
   name: 'Maya',
   role: 'Creator',
   homeState: 'California',

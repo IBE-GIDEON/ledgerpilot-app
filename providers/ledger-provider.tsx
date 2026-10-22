@@ -40,6 +40,7 @@ import { env, usingSupabaseBackend } from '@/lib/config/env';
 import {
   defaultBilling,
   defaultProfile,
+  demoProfile,
   expenseCategories,
   seededInsights,
   seededReceipts,
@@ -203,10 +204,11 @@ const initialState: LedgerState = {
   billing: defaultBilling,
   activePlan: 'Pro',
   reservePercent: 28,
-  transactions: seededTransactions,
-  receipts: seededReceipts,
-  trips: seededTrips,
-  deductionInsights: seededInsights,
+  // Real accounts start empty; sample data only appears in the demo.
+  transactions: [],
+  receipts: [],
+  trips: [],
+  deductionInsights: [],
 };
 
 const classificationCycle: TripClassification[] = ['Business', 'Mixed', 'Personal'];
@@ -348,6 +350,11 @@ function ledgerReducer(state: LedgerState, action: LedgerAction): LedgerState {
         ...initialState,
         isAuthenticated: true,
         onboardingComplete: true,
+        profile: demoProfile,
+        transactions: seededTransactions,
+        receipts: seededReceipts,
+        trips: seededTrips,
+        deductionInsights: seededInsights,
         billing: {
           ...initialState.billing,
           billingSetupComplete: true,

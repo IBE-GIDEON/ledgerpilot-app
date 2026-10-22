@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Amount, List, Row, Screen, Section, SpendBars, Text, Tile, useFeature } from '@/components/ds';
+import { Amount, Button, Card, List, Row, Screen, Section, SpendBars, Text, Tile, useFeature } from '@/components/ds';
 import { HomeHeader } from '@/components/home/home-header';
 import { SafeToSpendCard } from '@/components/home/safe-to-spend-card';
 import { getExpensesByCategory, getNextQuarter, getReviewCounts } from '@/components/taxes/tax-summary';
@@ -22,7 +22,11 @@ export default function HomeScreen() {
     () =>
       getExpensesByCategory(transactions)
         .slice(0, 4)
-        .map((entry, index) => ({ key: entry.category, value: entry.total, color: dataColors[index % dataColors.length] })),
+        .map((entry, index) => ({
+          key: entry.category,
+          value: entry.total,
+          color: dataColors[index % dataColors.length],
+        })),
     [transactions]
   );
   const recent = useMemo(
@@ -41,23 +45,45 @@ export default function HomeScreen() {
         setAside={metrics.reserveTarget}
       />
 
-      <View style={styles.row}>
-        <Tile caption={formatCompactCurrency(metrics.expenses)} onPress={() => router.push('/activity')} title="Spending">
-          <SpendBars segments={spending} />
-        </Tile>
-        <Tile
-          caption={hasQuarterly && nextQuarter ? `Due ${formatDate(nextQuarter.dueDate)}` : 'Quarterly'}
-          onPress={() => router.push('/tax')}
-          title="Taxes">
-          {hasQuarterly && nextQuarter ? (
-            <Amount cents={false} size="heading" value={nextQuarter.amountDue} />
-          ) : (
-            <Text tone="muted" variant="smallMedium">
-              Pro
-            </Text>
-          )}
-        </Tile>
-      </View>
+      {transactions.length === 0 ? (
+        <Card>
+          <Text variant="subheading">Add your first transaction</Text>
+          <Text tone="muted" variant="small">
+            Lancer works out your tax from what you add.
+          </Text>
+          <Button
+            fullWidth={false}
+            icon="add"
+            label="Add"
+            onPress={() => router.push('/transaction-create')}
+            size="small"
+            variant="secondary"
+          />
+        </Card>
+      ) : null}
+
+      {transactions.length > 0 ? (
+        <View style={styles.row}>
+          <Tile
+            caption={formatCompactCurrency(metrics.expenses)}
+            onPress={() => router.push('/activity')}
+            title="Spending">
+            <SpendBars segments={spending} />
+          </Tile>
+          <Tile
+            caption={hasQuarterly && nextQuarter ? `Due ${formatDate(nextQuarter.dueDate)}` : 'Quarterly'}
+            onPress={() => router.push('/tax')}
+            title="Taxes">
+            {hasQuarterly && nextQuarter ? (
+              <Amount cents={false} size="heading" value={nextQuarter.amountDue} />
+            ) : (
+              <Text tone="muted" variant="smallMedium">
+                Pro
+              </Text>
+            )}
+          </Tile>
+        </View>
+      ) : null}
 
       {recent.length > 0 ? (
         <Section action={{ label: 'See all', onPress: () => router.push('/activity') }} title="Recent">
@@ -67,10 +93,17 @@ export default function HomeScreen() {
               return (
                 <Row
                   key={transaction.id}
-                  onPress={() => router.push({ pathname: '/transaction-detail', params: { id: transaction.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/transaction-detail',
+                      params: { id: transaction.id },
+                    })
+                  }
                   subtitle={formatDate(transaction.date)}
                   title={transaction.merchant}
-                  trailing={<Amount signed size="bodyMedium" value={transaction.kind === 'income' ? amount : -amount} />}
+                  trailing={
+                    <Amount signed size="bodyMedium" value={transaction.kind === 'income' ? amount : -amount} />
+                  }
                 />
               );
             })}

@@ -27,7 +27,7 @@ export const TripRow = memo(function TripRow({ trip, onCycle, onDelete }: TripRo
         accessibilityLabel={`${route}, ${trip.miles.toFixed(1)} miles, ${trip.classification}. Tap to change type, press and hold to delete.`}
         onLongPress={() => onDelete(trip.id)}
         onPress={() => onCycle(trip.id)}
-        subtitle={`${trip.purpose} · ${formatDate(trip.date)}`}
+        subtitle={trip.purpose ? `${trip.purpose} · ${formatDate(trip.date)}` : formatDate(trip.date)}
         title={route}
         trailing={
           <View style={styles.trailing}>

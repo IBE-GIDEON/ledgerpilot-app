@@ -41,7 +41,7 @@ export function AddTripCard({ onAdd, onClose }: AddTripCardProps) {
         startLabel: startLabel.trim(),
         endLabel: endLabel.trim(),
         miles: parsedMiles,
-        purpose: purpose.trim() || 'Client run',
+        purpose: purpose.trim(),
         classification,
       });
 
@@ -100,7 +100,7 @@ export function AddTripCard({ onAdd, onClose }: AddTripCardProps) {
         label="Purpose"
         onChangeText={setPurpose}
         onSubmitEditing={() => void handleSave()}
-        placeholder="Client run"
+        placeholder="Optional"
         returnKeyType="done"
         value={purpose}
       />
