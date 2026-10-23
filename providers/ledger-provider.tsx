@@ -1047,7 +1047,7 @@ export function LedgerProvider({ children }: PropsWithChildren) {
 
     if (isExpoGoAuthSession()) {
       throw new Error(
-        'Google sign-in needs a development build or release build on iPhone. Expo Go cannot complete this OAuth redirect.'
+        'Google sign-in works in the installed Lancer app. Expo Go cannot finish the Google redirect.'
       );
     }
 

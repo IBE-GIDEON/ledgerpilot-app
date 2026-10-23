@@ -60,7 +60,7 @@ export function AuthCallbackScreen() {
 
   if (!isProcessingUrl && !isHydratingAuth && !errorMessage) {
     if (!isAuthenticated) {
-      return <Redirect href="/login" />;
+      return <Redirect href="/welcome" />;
     }
 
     // Billing and trial status gate individual Pro features, never the whole app (matches app/index.tsx).
@@ -92,7 +92,7 @@ export function AuthCallbackScreen() {
         ) : null}
       </View>
 
-      {errorMessage ? <Button label="Sign in" onPress={() => router.replace('/login')} /> : null}
+      {errorMessage ? <Button label="Sign in" onPress={() => router.replace('/welcome')} /> : null}
     </Screen>
   );
 }

@@ -2,12 +2,15 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Text, useGutter } from '@/components/ds';
+import { Text, useGutter } from '@/components/ds';
+import { GoogleButton } from '@/components/onboarding-v2/google-button';
 import { WordCycle } from '@/components/onboarding-v2/word-cycle';
 import { fonts, radius, space } from '@/constants/theme';
+import { useLedger } from '@/providers/ledger-provider';
 
 // What the user does in Lancer. Lancer records and estimates; it never holds or moves money.
 const words = [
@@ -17,11 +20,27 @@ const words = [
   { label: 'Estimate taxes', icon: 'calculator-outline' },
 ] as const;
 
-/** First screen after the splash: light at the top fading to black, one message, two actions. Never scrolls. */
+/** First screen after the splash: light at the top fading to black, one message, one way in. Never scrolls. */
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const gutter = useGutter();
+  const { auth, authBusy } = useLedger();
+  const [error, setError] = useState<string | null>(null);
+
+  const continueWithGoogle = async () => {
+    setError(null);
+    try {
+      await auth.signInWithGoogle();
+      router.replace('/');
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Google sign-in failed. Try again.';
+      // Closing the Google sheet is a choice, not an error.
+      if (!/cancel/i.test(message)) {
+        setError(message);
+      }
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -50,13 +69,23 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Button label="Get started" onPress={() => router.push('/signup')} />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/login')}
-            style={({ pressed }) => [styles.secondary, pressed ? styles.secondaryPressed : null]}>
-            <Text style={styles.secondaryLabel}>I have an account</Text>
-          </Pressable>
+          <GoogleButton loading={authBusy} onPress={() => void continueWithGoogle()} />
+          {error ? (
+            <Text accessibilityLiveRegion="polite" accessibilityRole="alert" align="center" style={styles.error}>
+              {error}
+            </Text>
+          ) : null}
+          <Text align="center" style={styles.legal}>
+            {'By continuing you agree to the '}
+            <Text onPress={() => router.push('/terms')} style={styles.legalLink}>
+              Terms
+            </Text>
+            {' and '}
+            <Text onPress={() => router.push('/privacy')} style={styles.legalLink}>
+              Privacy Policy
+            </Text>
+            .
+          </Text>
         </View>
       </View>
     </View>
@@ -107,19 +136,21 @@ const styles = StyleSheet.create({
   actions: {
     gap: space.sm + 2,
   },
-  secondary: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: radius.control,
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  secondaryPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  secondaryLabel: {
-    color: '#FFFFFF',
+  error: {
+    color: '#FF8A8E',
     fontFamily: fonts.sansMedium,
-    fontSize: 16,
+    fontSize: 14,
+  },
+  legal: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: fonts.sans,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  legalLink: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: fonts.sansMedium,
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });
