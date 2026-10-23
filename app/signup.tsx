@@ -2,7 +2,8 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Alert, Platform, StyleSheet, TextInput, View } from 'react-native';
 
-import { Button, Field, Screen } from '@/components/ds';
+import { Button, Field } from '@/components/ds';
+import { AuthShell } from '@/components/onboarding-v2/auth-shell';
 import { AuthIntro, describeError, FormError, isValidEmail, OrDivider } from '@/components/onboarding-v2/auth-parts';
 import { space } from '@/constants/theme';
 import { useLedger } from '@/providers/ledger-provider';
@@ -94,8 +95,8 @@ export default function SignupScreen() {
   };
 
   return (
-    <Screen header keyboard>
-      <AuthIntro photo subtitle="No card needed." title="Create account" />
+    <AuthShell>
+      <AuthIntro subtitle="No card needed." title="Create account" />
 
       <View style={styles.fields}>
         <Field
@@ -183,7 +184,7 @@ export default function SignupScreen() {
       </View>
 
       <Button label="Sign in" onPress={() => router.replace('/login')} variant="ghost" />
-    </Screen>
+    </AuthShell>
   );
 }
 

@@ -1,26 +1,20 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Divider, Photo, Text } from '@/components/ds';
-import { photos } from '@/constants/images';
+import { Divider, Text } from '@/components/ds';
 import { space } from '@/constants/theme';
 
-/** Bold title and optional one-line caption at the top of auth forms (the native header has no title). */
-export function AuthIntro({ title, subtitle, photo = false }: { title: string; subtitle?: string; photo?: boolean }) {
+/** Centred title and optional one-line caption under the logo on auth screens. */
+export function AuthIntro({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={styles.intro}>
-      {photo ? (
-        <Photo
-          accessibilityLabel={photos.auth.alt}
-          aspectRatio={2.6}
-          focus={photos.auth.focus}
-          source={photos.auth.source}
-          style={styles.photo}
-        />
-      ) : null}
-      <Text accessibilityRole="header" variant="title">
+      <Text accessibilityRole="header" align="center" variant="title">
         {title}
       </Text>
-      {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
+      {subtitle ? (
+        <Text align="center" tone="muted">
+          {subtitle}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -66,9 +60,6 @@ export function describeError(error: unknown, fallback: string) {
 }
 
 const styles = StyleSheet.create({
-  photo: {
-    marginBottom: space.md,
-  },
   intro: {
     gap: space.xs,
   },

@@ -2,7 +2,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Button, Card, Field, Screen, Text } from '@/components/ds';
+import { Button, Card, Field, Text } from '@/components/ds';
+import { AuthShell } from '@/components/onboarding-v2/auth-shell';
 import { AuthIntro, describeError, FormError, isValidEmail } from '@/components/onboarding-v2/auth-parts';
 import { space } from '@/constants/theme';
 import { useLedger } from '@/providers/ledger-provider';
@@ -42,7 +43,7 @@ export default function ForgotPasswordScreen() {
 
   if (sentTo) {
     return (
-      <Screen header>
+      <AuthShell>
         <AuthIntro title="Check your inbox" />
         <Card>
           <Text variant="small" tone="muted">
@@ -56,12 +57,12 @@ export default function ForgotPasswordScreen() {
           <Button label="Sign in" onPress={() => router.back()} />
           <Button label="Change email" onPress={() => setSentTo(null)} variant="ghost" />
         </View>
-      </Screen>
+      </AuthShell>
     );
   }
 
   return (
-    <Screen header keyboard>
+    <AuthShell>
       <AuthIntro subtitle="We’ll email you a link." title="Reset password" />
 
       <Field
@@ -87,7 +88,7 @@ export default function ForgotPasswordScreen() {
         <FormError message={formError} />
         <Button label="Sign in" onPress={() => router.back()} variant="ghost" />
       </View>
-    </Screen>
+    </AuthShell>
   );
 }
 

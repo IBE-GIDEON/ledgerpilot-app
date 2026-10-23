@@ -97,6 +97,13 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
   }
 
   const modal = Platform.OS === 'ios' ? ('formSheet' as const) : ('modal' as const);
+  // Auth screens draw their own white-to-black fade; the back arrow floats over the white.
+  const authHeader = {
+    title: '',
+    headerTransparent: true,
+    headerStyle: { backgroundColor: 'transparent' },
+    headerTintColor: '#0B0B0C',
+  };
 
   return (
     <ThemeProvider value={navigationTheme}>
@@ -116,9 +123,9 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="callback" options={{ headerShown: false }} />
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
-        <Stack.Screen name="login" options={{ title: '' }} />
-        <Stack.Screen name="signup" options={{ title: '' }} />
-        <Stack.Screen name="forgot-password" options={{ title: '' }} />
+        <Stack.Screen name="login" options={authHeader} />
+        <Stack.Screen name="signup" options={authHeader} />
+        <Stack.Screen name="forgot-password" options={authHeader} />
         <Stack.Screen name="setup" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="billing-setup" options={{ title: 'Payment method' }} />
         <Stack.Screen name="upgrade" options={{ title: 'Plans', presentation: modal }} />
