@@ -48,9 +48,11 @@ export default function WelcomeScreen() {
             <Image accessibilityLabel="Lancer" source={require('@/assets/images/logo.png')} style={styles.markLogo} />
           </View>
           <Text accessibilityRole="header" style={styles.headline}>
-            {'Your money,\nsorted.'}
+            {'Freelance taxes,\nsorted.'}
           </Text>
-          <Text style={styles.caption}>Track income, save for tax and keep every deduction.</Text>
+          <Text style={styles.caption}>
+            Track what you earn and spend, find deductions, and know exactly what to save for tax.
+          </Text>
         </View>
 
         <View style={styles.actions}>
