@@ -38,12 +38,12 @@ export function WordCycle({ words, color }: WordCycleProps) {
       return;
     }
 
+    // Step outside React's render: drive the animation, then mirror the step in state for screen readers.
+    let step = 0;
     const timer = setInterval(() => {
-      setActive((current) => {
-        const next = current + 1;
-        position.value = withTiming(next, { duration: 650, easing: Easing.out(Easing.cubic) });
-        return next;
-      });
+      step += 1;
+      position.value = withTiming(step, { duration: 650, easing: Easing.out(Easing.cubic) });
+      setActive(step);
     }, STEP_MS);
 
     return () => clearInterval(timer);
