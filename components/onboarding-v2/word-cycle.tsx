@@ -96,9 +96,11 @@ function CycleItem({ word, index, count, color, position }: CycleItemProps) {
   return (
     <Animated.View importantForAccessibility="no-hide-descendants" style={[styles.row, rowStyle]}>
       <Animated.View style={iconStyle}>
-        <Ionicons color={color} name={word.icon} size={26} />
+        <Ionicons color={color} name={word.icon} size={24} />
       </Animated.View>
-      <Animated.Text style={[styles.word, { color }]}>{word.label}</Animated.Text>
+      <Animated.Text adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1} style={[styles.word, { color }]}>
+        {word.label}
+      </Animated.Text>
     </Animated.View>
   );
 }
@@ -119,8 +121,9 @@ const styles = StyleSheet.create({
     top: ROW,
   },
   word: {
+    flexShrink: 1,
     fontFamily: fonts.display,
-    fontSize: 34,
-    letterSpacing: -0.6,
+    fontSize: 30,
+    letterSpacing: -0.5,
   },
 });

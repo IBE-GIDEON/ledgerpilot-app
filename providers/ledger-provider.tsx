@@ -40,12 +40,7 @@ import { env, usingSupabaseBackend } from '@/lib/config/env';
 import {
   defaultBilling,
   defaultProfile,
-  demoProfile,
   expenseCategories,
-  seededInsights,
-  seededReceipts,
-  seededTransactions,
-  seededTrips,
 } from '@/lib/mock-data';
 import {
   createSessionFromUrl,
@@ -101,7 +96,6 @@ type HydrateSessionPayload = {
 
 type LedgerAction =
   | { type: 'startSession'; name: string }
-  | { type: 'startDemo' }
   | { type: 'hydrateSession'; payload: HydrateSessionPayload }
   | { type: 'endSession' }
   | { type: 'completeOnboarding'; payload: OnboardingPayload }
@@ -168,7 +162,6 @@ interface LedgerContextValue extends LedgerState {
       password: string;
     }) => Promise<SignUpResult>;
     sendPasswordResetEmail: (email: string) => Promise<void>;
-    startDemo: () => void;
   };
   actions: {
     addTransaction: (payload: AddTransactionPayload) => Promise<void>;
@@ -204,7 +197,7 @@ const initialState: LedgerState = {
   billing: defaultBilling,
   activePlan: 'Pro',
   reservePercent: 28,
-  // Real accounts start empty; sample data only appears in the demo.
+  // Accounts start empty; everything shown comes from what the user adds.
   transactions: [],
   receipts: [],
   trips: [],
@@ -343,21 +336,6 @@ function ledgerReducer(state: LedgerState, action: LedgerAction): LedgerState {
         profile: {
           ...state.profile,
           name: action.name,
-        },
-      };
-    case 'startDemo':
-      return {
-        ...initialState,
-        isAuthenticated: true,
-        onboardingComplete: true,
-        profile: demoProfile,
-        transactions: seededTransactions,
-        receipts: seededReceipts,
-        trips: seededTrips,
-        deductionInsights: seededInsights,
-        billing: {
-          ...initialState.billing,
-          billingSetupComplete: true,
         },
       };
     case 'hydrateSession':
@@ -1057,10 +1035,6 @@ export function LedgerProvider({ children }: PropsWithChildren) {
     },
     [supabase]
   );
-
-  const startDemo = useCallback(() => {
-    dispatch({ type: 'startDemo' });
-  }, []);
 
   const signInWithGoogle = useCallback(async () => {
     if (!supabase || !usingSupabaseBackend) {
@@ -2006,7 +1980,6 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         signOut,
         signUpWithEmail,
         sendPasswordResetEmail,
-        startDemo,
       },
       actions: {
         addTransaction,
@@ -2065,7 +2038,6 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       signOut,
       signUpWithEmail,
       sendPasswordResetEmail,
-      startDemo,
       state,
       toggleReceiptVerified,
       toggleTransactionDeductible,

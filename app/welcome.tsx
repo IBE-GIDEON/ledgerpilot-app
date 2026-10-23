@@ -8,26 +8,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Text, useGutter } from '@/components/ds';
 import { WordCycle } from '@/components/onboarding-v2/word-cycle';
 import { fonts, radius, space } from '@/constants/theme';
-import { useLedger } from '@/providers/ledger-provider';
 
+// What the user does in Lancer. Lancer records and estimates; it never holds or moves money.
 const words = [
-  { label: 'Track', icon: 'stats-chart' },
-  { label: 'Save', icon: 'wallet' },
-  { label: 'Deduct', icon: 'receipt' },
-  { label: 'File', icon: 'document-text' },
+  { label: 'Log income', icon: 'arrow-down-circle-outline' },
+  { label: 'Track expenses', icon: 'receipt-outline' },
+  { label: 'Find deductions', icon: 'pricetag-outline' },
+  { label: 'Estimate taxes', icon: 'calculator-outline' },
 ] as const;
 
 /** First screen after the splash: light at the top fading to black, one message, two actions. Never scrolls. */
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { auth } = useLedger();
   const insets = useSafeAreaInsets();
   const gutter = useGutter();
-
-  const handleExplore = () => {
-    auth.startDemo();
-    router.replace('/dashboard');
-  };
 
   return (
     <View style={styles.root}>
@@ -62,14 +56,6 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/login')}
             style={({ pressed }) => [styles.secondary, pressed ? styles.secondaryPressed : null]}>
             <Text style={styles.secondaryLabel}>I have an account</Text>
-          </Pressable>
-          <Pressable
-            accessibilityHint="Opens Lancer with sample data. Nothing is saved."
-            accessibilityRole="button"
-            hitSlop={12}
-            onPress={handleExplore}
-            style={styles.demo}>
-            <Text style={styles.demoLabel}>Explore the demo</Text>
           </Pressable>
         </View>
       </View>
@@ -135,14 +121,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: fonts.sansMedium,
     fontSize: 16,
-  },
-  demo: {
-    alignItems: 'center',
-    paddingVertical: space.sm,
-  },
-  demoLabel: {
-    color: 'rgba(255, 255, 255, 0.55)',
-    fontFamily: fonts.sansMedium,
-    fontSize: 14,
   },
 });
