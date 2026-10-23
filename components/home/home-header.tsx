@@ -13,7 +13,7 @@ type HomeHeaderProps = {
   hasAlerts?: boolean;
 };
 
-/** Avatar (opens Account), search (opens Money) and notifications. */
+/** Avatar (opens Account), search (opens Search) and notifications. */
 export function HomeHeader({ name, avatarUrl, hasAlerts = false }: HomeHeaderProps) {
   const router = useRouter();
   const { theme } = useAppTheme();
@@ -40,7 +40,7 @@ export function HomeHeader({ name, avatarUrl, hasAlerts = false }: HomeHeaderPro
           <Text variant="subheading">{initial}</Text>
         )}
       </Pressable>
-      <SearchPill onPress={() => router.push('/activity')} />
+      <SearchPill onPress={() => router.push('/search')} />
       <IconButton
         badge={hasAlerts}
         icon="notifications-outline"

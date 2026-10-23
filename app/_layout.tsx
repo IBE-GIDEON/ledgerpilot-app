@@ -116,6 +116,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="callback" options={{ headerShown: false }} />
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="search" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="setup" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="billing-setup" options={{ title: 'Payment method' }} />
         <Stack.Screen name="upgrade" options={{ title: 'Plans', presentation: modal }} />
