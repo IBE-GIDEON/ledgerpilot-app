@@ -1,24 +1,27 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Photo, Text, useGutter } from '@/components/ds';
-import { photos } from '@/constants/images';
-import { space } from '@/constants/theme';
-import { useAppTheme } from '@/providers/app-theme-provider';
+import { Button, Text, useGutter } from '@/components/ds';
+import { WordCycle } from '@/components/onboarding-v2/word-cycle';
+import { fonts, radius, space } from '@/constants/theme';
 import { useLedger } from '@/providers/ledger-provider';
 
-/** First screen after the splash. Fixed to one screen on every device; nothing scrolls. */
+const words = [
+  { label: 'Track', icon: 'stats-chart' },
+  { label: 'Save', icon: 'wallet' },
+  { label: 'Deduct', icon: 'receipt' },
+  { label: 'File', icon: 'document-text' },
+] as const;
+
+/** First screen after the splash: light at the top fading to black, one message, two actions. Never scrolls. */
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { theme } = useAppTheme();
   const { auth } = useLedger();
   const insets = useSafeAreaInsets();
   const gutter = useGutter();
-  const { width, height } = useWindowDimensions();
-
-  // The photo takes the top half; short phones get a little less so the actions always fit.
-  const photoHeight = Math.round(height * (height < 700 ? 0.46 : 0.54));
 
   const handleExplore = () => {
     auth.startDemo();
@@ -26,37 +29,44 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <Photo
-        accessibilityLabel={photos.welcome.alt}
-        aspectRatio={width / photoHeight}
-        focus={photos.welcome.focus}
-        rounded={false}
-        source={photos.welcome.source}
+    <View style={styles.root}>
+      <StatusBar style="dark" />
+      <LinearGradient
+        colors={['#FFFFFF', '#F1F1F2', '#3A3A3E', '#0B0B0C', '#000000']}
+        locations={[0, 0.34, 0.62, 0.8, 1]}
+        style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.panel, { paddingHorizontal: gutter, paddingBottom: insets.bottom + space.lg }]}>
-        <View style={styles.brand}>
-          <Text accessibilityRole="header" variant="display">
-            Lancer
+      <View style={[styles.top, { paddingTop: insets.top + space.xxl * 2, paddingHorizontal: gutter + space.sm }]}>
+        <WordCycle color="#0B0B0C" words={words} />
+      </View>
+
+      <View style={[styles.bottom, { paddingHorizontal: gutter, paddingBottom: insets.bottom + space.lg }]}>
+        <View style={styles.message}>
+          <View style={styles.mark}>
+            <Text style={styles.markLetter}>L</Text>
+          </View>
+          <Text accessibilityRole="header" style={styles.headline}>
+            {'Your money,\nsorted.'}
           </Text>
-          <Text variant="body" tone="muted">
-            Money and tax for freelancers.
-          </Text>
+          <Text style={styles.caption}>Track income, save for tax and keep every deduction.</Text>
         </View>
 
         <View style={styles.actions}>
           <Button label="Get started" onPress={() => router.push('/signup')} />
-          <Button label="I have an account" onPress={() => router.push('/login')} variant="secondary" />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/login')}
+            style={({ pressed }) => [styles.secondary, pressed ? styles.secondaryPressed : null]}>
+            <Text style={styles.secondaryLabel}>I have an account</Text>
+          </Pressable>
           <Pressable
             accessibilityHint="Opens Lancer with sample data. Nothing is saved."
             accessibilityRole="button"
             hitSlop={12}
             onPress={handleExplore}
             style={styles.demo}>
-            <Text variant="smallMedium" tone="muted">
-              Explore the demo
-            </Text>
+            <Text style={styles.demoLabel}>Explore the demo</Text>
           </Pressable>
         </View>
       </View>
@@ -66,21 +76,72 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   root: {
+    backgroundColor: '#000000',
     flex: 1,
   },
-  panel: {
+  top: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: space.xl,
   },
-  brand: {
-    gap: space.xs,
+  bottom: {
+    gap: space.xl,
+  },
+  message: {
+    gap: space.md,
+  },
+  mark: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.sm,
+    height: 40,
+    justifyContent: 'center',
+    marginBottom: space.xs,
+    width: 40,
+  },
+  markLetter: {
+    color: '#0B0B0C',
+    fontFamily: fonts.display,
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  headline: {
+    color: '#FFFFFF',
+    fontFamily: fonts.display,
+    fontSize: 34,
+    letterSpacing: -0.6,
+    lineHeight: 40,
+  },
+  caption: {
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    lineHeight: 21,
+    maxWidth: 300,
   },
   actions: {
     gap: space.sm + 2,
   },
+  secondary: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: radius.control,
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  secondaryPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  secondaryLabel: {
+    color: '#FFFFFF',
+    fontFamily: fonts.sansMedium,
+    fontSize: 16,
+  },
   demo: {
     alignItems: 'center',
     paddingVertical: space.sm,
+  },
+  demoLabel: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontFamily: fonts.sansMedium,
+    fontSize: 14,
   },
 });

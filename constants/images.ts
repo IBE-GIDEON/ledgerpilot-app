@@ -4,15 +4,9 @@ type Photo = { source: ImageSource | number; focus: { x: number; y: number }; al
 
 /**
  * Bundled photography from Unsplash (Unsplash License), compressed WebP in assets/images/finance.
- * Used sparingly: the welcome screen, the sign-in header, Plans and the Money empty state.
+ * Used sparingly: the sign-in header, Plans and the Money empty state.
  */
 export const photos = {
-  // Brecht Corbeel — unsplash.com/photos/open-ledger-on-wooden-desk-G3J3-k5gOeg
-  welcome: {
-    source: require('@/assets/images/finance/welcome.webp'),
-    focus: { x: 0.62, y: 0.6 },
-    alt: 'An open ledger on a dark desk with brass weights',
-  },
   // camera obscura — unsplash.com/photos/feather-quill-rests-on-an-old-handwritten-ledger-mAcZ7DXz5QM
   auth: {
     source: require('@/assets/images/finance/auth.webp'),
