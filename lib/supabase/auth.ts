@@ -1,4 +1,3 @@
-import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
@@ -11,10 +10,10 @@ function readParam(source: URLSearchParams, key: string) {
   return source.get(key) ?? undefined;
 }
 
-export function isExpoGoAuthSession() {
-  return Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-}
-
+/**
+ * Where Google sends people back after sign-in: lancer://auth/callback in the installed app,
+ * exp://<dev server>/--/auth/callback in Expo Go. Both must be allowed in Supabase Redirect URLs.
+ */
 export function getAuthRedirectUrl() {
   return makeRedirectUri({
     scheme: 'lancer',

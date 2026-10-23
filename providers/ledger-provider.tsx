@@ -45,7 +45,6 @@ import {
 import {
   createSessionFromUrl,
   getAuthRedirectUrl,
-  isExpoGoAuthSession,
 } from '@/lib/supabase/auth';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { syncLocalReminders } from '@/lib/notifications/native';
@@ -1043,12 +1042,6 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         name: defaultProfile.name,
       });
       return;
-    }
-
-    if (isExpoGoAuthSession()) {
-      throw new Error(
-        'Google sign-in works in the installed Lancer app. Expo Go cannot finish the Google redirect.'
-      );
     }
 
     setAuthBusy(true);
