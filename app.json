@@ -99,6 +99,10 @@
         "projectId": "d5c0cfda-4d3f-4625-9733-613c63a386b2"
       }
     },
-    "owner": "gideonsnicks"
+    "owner": "gideonsnicks",
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }
