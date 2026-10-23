@@ -1053,6 +1053,8 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         options: {
           redirectTo,
           skipBrowserRedirect: true,
+          // Always let people pick which Google account, even if one is already signed in.
+          queryParams: { prompt: 'select_account' },
         },
       });
 
