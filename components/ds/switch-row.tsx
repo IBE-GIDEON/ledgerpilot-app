@@ -1,7 +1,7 @@
 import { ComponentProps } from 'react';
 import { Switch } from 'react-native';
 
-import { Row } from '@/components/ds';
+import { Row } from '@/components/ds/surfaces';
 import { useAppTheme } from '@/providers/app-theme-provider';
 
 type SwitchRowProps = {

@@ -1,42 +1,47 @@
-import * as Notifications from 'expo-notifications';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { Alert, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { ComponentProps, useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Linking } from 'react-native';
 
-import { Badge, Button, EmptyState, List, Row, Screen, Section } from '@/components/ds';
+import { Badge, Button, EmptyState, List, Row, Screen, Section, SwitchRow } from '@/components/ds';
 import { formatCurrency, formatFullDate } from '@/lib/formatters';
-import { ensureNotificationPermissionsAsync } from '@/lib/notifications/native';
+import {
+  loadReminderPrefs,
+  PermissionState,
+  readPermission,
+  reminderLabels,
+  ReminderKind,
+  ReminderPrefs,
+  requestPermission,
+  saveReminderPrefs,
+} from '@/lib/notifications/native';
 import { useLedger } from '@/providers/ledger-provider';
 
-type PermissionState = 'unknown' | 'granted' | 'undetermined' | 'blocked' | 'unsupported';
-
-type Reminder = {
+type Upcoming = {
   id: string;
   title: string;
   subtitle: string;
   icon: ComponentProps<typeof Ionicons>['name'];
-  route?: '/tax' | '/activity' | '/mileage' | '/upgrade';
+  route: '/tax' | '/activity' | '/mileage';
 };
 
-async function readPermission(): Promise<PermissionState> {
-  if (Platform.OS === 'web') {
-    return 'unsupported';
-  }
+const kinds: ReminderKind[] = ['quarterlyTax', 'weeklyCheckIn', 'mileage', 'yearEnd'];
+const kindIcons: Record<ReminderKind, ComponentProps<typeof Ionicons>['name']> = {
+  quarterlyTax: 'calendar-outline',
+  weeklyCheckIn: 'checkmark-circle-outline',
+  mileage: 'car-outline',
+  yearEnd: 'briefcase-outline',
+};
 
-  const current = await Notifications.getPermissionsAsync();
-  if (current.granted || current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
-    return 'granted';
-  }
-  return current.canAskAgain ? 'undetermined' : 'blocked';
-}
-
+/** One job: control which reminders Lancer sends, and see what's coming up. */
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { access, profile, quarters, receipts, transactions, trips } = useLedger();
-  const [permission, setPermission] = useState<PermissionState>('unknown');
+  const { profile, quarters, receipts, transactions } = useLedger();
+  const [permission, setPermission] = useState<PermissionState | null>(null);
+  const [prefs, setPrefs] = useState<ReminderPrefs | null>(null);
   const [requesting, setRequesting] = useState(false);
 
+  // Re-check when the screen returns from phone Settings.
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -49,73 +54,18 @@ export default function NotificationsScreen() {
     }, [])
   );
 
-  const reminders = useMemo<Reminder[]>(() => {
-    const list: Reminder[] = [];
+  useEffect(() => {
+    void loadReminderPrefs().then(setPrefs);
+  }, []);
 
-    const nextQuarter =
-      quarters.find((quarter) => quarter.status === 'Next up') ??
-      quarters.find((quarter) => quarter.status === 'Upcoming');
-    if (nextQuarter) {
-      list.push({
-        id: 'tax',
-        title: `${nextQuarter.label} tax`,
-        subtitle: `${formatCurrency(nextQuarter.amountDue, 0)} · ${formatFullDate(nextQuarter.dueDate)}`,
-        icon: 'calendar-outline',
-        route: '/tax',
-      });
+  const toggle = (kind: ReminderKind, value: boolean) => {
+    if (!prefs) {
+      return;
     }
-
-    const receiptsToReview = receipts.filter((item) => item.status === 'Needs review').length;
-    if (receiptsToReview > 0) {
-      list.push({
-        id: 'receipts',
-        title: 'Receipts to review',
-        subtitle: `${receiptsToReview} waiting`,
-        icon: 'receipt-outline',
-        route: '/activity',
-      });
-    }
-
-    const personalExpenses = transactions.filter((item) => item.kind === 'expense' && !item.deductible).length;
-    if (personalExpenses > 0) {
-      list.push({
-        id: 'expenses',
-        title: 'Check deductions',
-        subtitle: `${personalExpenses} marked personal`,
-        icon: 'wallet-outline',
-        route: '/activity',
-      });
-    }
-
-    if (profile.mileageMode !== 'Never') {
-      const now = new Date();
-      const monthMiles = trips
-        .filter((trip) => {
-          const date = new Date(trip.date);
-          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-        })
-        .reduce((total, trip) => total + trip.miles, 0);
-      list.push({
-        id: 'mileage',
-        title: 'Mileage',
-        subtitle: monthMiles > 0 ? `${monthMiles.toFixed(1)} mi this month` : 'No trips this month',
-        icon: 'navigate-outline',
-        route: '/mileage',
-      });
-    }
-
-    if (access.subscriptionStatus === 'trialing' && access.trialEndsAt) {
-      list.push({
-        id: 'trial',
-        title: 'Trial ending',
-        subtitle: `Ends ${formatFullDate(access.trialEndsAt)}`,
-        icon: 'time-outline',
-        route: '/upgrade',
-      });
-    }
-
-    return list;
-  }, [access.subscriptionStatus, access.trialEndsAt, profile.mileageMode, quarters, receipts, transactions, trips]);
+    const next = { ...prefs, [kind]: value };
+    setPrefs(next);
+    void saveReminderPrefs(next);
+  };
 
   const turnOn = async () => {
     if (permission === 'blocked') {
@@ -125,7 +75,7 @@ export default function NotificationsScreen() {
 
     setRequesting(true);
     try {
-      const granted = await ensureNotificationPermissionsAsync();
+      const granted = await requestPermission();
       setPermission(granted ? 'granted' : await readPermission());
       if (!granted) {
         Alert.alert('Notifications are off', 'You can turn them on for Lancer in your phone settings.');
@@ -137,36 +87,70 @@ export default function NotificationsScreen() {
     }
   };
 
-  const permissionBadge =
-    permission === 'granted' ? (
-      <Badge label="On" tone="positive" />
-    ) : permission === 'unknown' ? null : (
-      <Badge label={permission === 'unsupported' ? 'Unavailable' : 'Off'} />
-    );
+  const upcoming = useMemo<Upcoming[]>(() => {
+    const list: Upcoming[] = [];
 
-  const permissionSubtitle =
-    permission === 'unsupported'
-      ? 'Needs the mobile app'
-      : permission === 'blocked'
-        ? 'Off in phone settings'
-        : !access.billingSetupComplete
-          ? 'Starts once your plan is set'
-          : undefined;
+    const nextQuarter = quarters.find((quarter) => quarter.status !== 'Complete');
+    if (nextQuarter && nextQuarter.amountDue > 0) {
+      list.push({
+        id: 'tax',
+        title: `${nextQuarter.label} tax`,
+        subtitle: `${formatCurrency(nextQuarter.amountDue, 0)} · ${formatFullDate(nextQuarter.dueDate)}`,
+        icon: 'calendar-outline',
+        route: '/tax',
+      });
+    }
+
+    const uncategorized = transactions.filter(
+      (item) => !item.category?.trim() || item.category === 'Uncategorized'
+    ).length;
+    const receiptsToReview = receipts.filter((item) => item.status === 'Needs review').length;
+    if (uncategorized + receiptsToReview > 0) {
+      list.push({
+        id: 'review',
+        title: 'Needs a look',
+        subtitle: [
+          uncategorized > 0 ? `${uncategorized} uncategorized` : null,
+          receiptsToReview > 0 ? `${receiptsToReview} receipts` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        icon: 'checkmark-circle-outline',
+        route: '/activity',
+      });
+    }
+
+    return list;
+  }, [quarters, receipts, transactions]);
+
+  const granted = permission === 'granted';
 
   return (
     <Screen header>
-      <Section title="Reminders">
+      <Section>
         <List>
           <Row
             icon="notifications-outline"
-            subtitle={permissionSubtitle}
+            subtitle={
+              permission === 'blocked'
+                ? 'Off in phone settings'
+                : permission === 'unsupported'
+                  ? 'Not available on this device'
+                  : undefined
+            }
             title="Notifications"
-            trailing={permissionBadge}
+            trailing={
+              permission === null ? null : granted ? (
+                <Badge label="On" tone="positive" />
+              ) : (
+                <Badge label="Off" />
+              )
+            }
           />
         </List>
         {permission === 'undetermined' || permission === 'blocked' ? (
           <Button
-            label={permission === 'blocked' ? 'Settings' : 'Turn on'}
+            label={permission === 'blocked' ? 'Open settings' : 'Turn on'}
             loading={requesting}
             onPress={() => void turnOn()}
             variant="secondary"
@@ -174,21 +158,36 @@ export default function NotificationsScreen() {
         ) : null}
       </Section>
 
+      {prefs ? (
+        <Section footnote={granted ? undefined : 'Your choices apply once notifications are on.'} title="Remind me about">
+          <List>
+            {kinds
+              .filter((kind) => kind !== 'mileage' || profile.mileageMode !== 'Never')
+              .map((kind) => (
+                <SwitchRow
+                  key={kind}
+                  icon={kindIcons[kind]}
+                  onValueChange={(value) => toggle(kind, value)}
+                  subtitle={reminderLabels[kind].subtitle}
+                  title={reminderLabels[kind].title}
+                  value={prefs[kind]}
+                />
+              ))}
+          </List>
+        </Section>
+      ) : null}
+
       <Section title="Coming up">
-        {reminders.length === 0 ? (
-          <EmptyState
-            body="Deadlines show up here."
-            icon="checkmark-done-outline"
-            title="All clear"
-          />
+        {upcoming.length === 0 ? (
+          <EmptyState body="Deadlines and to-dos show up here." icon="checkmark-done-outline" title="All clear" />
         ) : (
           <List>
-            {reminders.map((item) => (
+            {upcoming.map((item) => (
               <Row
                 key={item.id}
-                chevron={Boolean(item.route)}
+                chevron
                 icon={item.icon}
-                onPress={item.route ? () => router.push(item.route!) : undefined}
+                onPress={() => router.push(item.route)}
                 subtitle={item.subtitle}
                 title={item.title}
               />

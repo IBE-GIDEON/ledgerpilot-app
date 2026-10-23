@@ -5,5 +5,6 @@ export { Photo } from '@/components/ds/photo';
 export { ProGate, useFeature } from '@/components/ds/pro-gate';
 export { Screen } from '@/components/ds/screen';
 export { Card, Divider, List, Row, Section } from '@/components/ds/surfaces';
+export { SwitchRow } from '@/components/ds/switch-row';
 export { IconBox, SearchPill, SpendBars, Tile } from '@/components/ds/tiles';
 export { Amount, Overline, Text } from '@/components/ds/text';

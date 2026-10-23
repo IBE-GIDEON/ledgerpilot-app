@@ -20,7 +20,7 @@ import {
 import { categoryOptionsFor, parseAmount } from '@/components/money/money-utils';
 import { chooseCaptureSource, pickReceiptImage } from '@/components/money/receipt-capture';
 import { ReceiptComposer, ReceiptRequest } from '@/components/money/receipt-composer';
-import { SwitchRow } from '@/components/money/switch-row';
+import { SwitchRow } from '@/components/ds/switch-row';
 import { space, tabularNums } from '@/constants/theme';
 import { formatFullDate } from '@/lib/formatters';
 import { UpdateTransactionPayload } from '@/lib/backend/payloads';

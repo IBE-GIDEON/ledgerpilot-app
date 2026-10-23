@@ -17,6 +17,7 @@ import '@/lib/mileage/background';
 import { IntroSplash } from '@/components/launch/intro-splash';
 import { fonts } from '@/constants/theme';
 import { env } from '@/lib/config/env';
+import { useReminderRouting } from '@/lib/notifications/use-reminder-routing';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { AppThemeProvider, useAppTheme } from '@/providers/app-theme-provider';
 import { LedgerProvider, useLedger } from '@/providers/ledger-provider';
@@ -25,7 +26,7 @@ void SplashScreen.preventAutoHideAsync();
 
 function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
   const { theme, isDark } = useAppTheme();
-  const { isHydratingAuth } = useLedger();
+  const { isAuthenticated, isHydratingAuth, onboardingComplete } = useLedger();
   const supabase = getSupabaseClient();
 
   const navigationTheme = useMemo(
@@ -47,6 +48,8 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
 
   const [introDone, setIntroDone] = useState(false);
   const finishIntro = useCallback(() => setIntroDone(true), []);
+
+  useReminderRouting(introDone && isAuthenticated && onboardingComplete);
 
   // The animated intro takes over from the native splash as soon as fonts are in;
   // it keeps covering the app until the session has loaded too.
@@ -118,6 +121,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="search" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="setup" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="reminders-intro" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="billing-setup" options={{ title: 'Payment method' }} />
         <Stack.Screen name="upgrade" options={{ title: 'Plans', presentation: modal }} />
         <Stack.Screen name="transaction-create" options={{ title: 'New transaction', presentation: modal }} />

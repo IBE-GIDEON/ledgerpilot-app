@@ -6,7 +6,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { Button, Chip, Field, List, Row, Screen, Segmented, Text } from '@/components/ds';
 import { categoryOptionsFor, internalSources, parseAmount } from '@/components/money/money-utils';
 import { choosePhotoSource, pickReceiptImage } from '@/components/money/receipt-capture';
-import { SwitchRow } from '@/components/money/switch-row';
+import { SwitchRow } from '@/components/ds/switch-row';
 import { radius, space, tabularNums } from '@/constants/theme';
 import { ReceiptCaptureAsset, removeUploadedReceiptAsset, uploadReceiptAsset } from '@/lib/supabase/receipts';
 import { useAppTheme } from '@/providers/app-theme-provider';

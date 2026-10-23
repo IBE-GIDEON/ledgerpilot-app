@@ -5,6 +5,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { Button, List, Progress, Row, Screen, Text } from '@/components/ds';
 import { space, tabularNums } from '@/constants/theme';
+import { shouldOfferReminders } from '@/lib/notifications/native';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 import { IncomeStyle, MileageMode, SetupFocus } from '@/types/ledger';
@@ -102,8 +103,10 @@ export default function SetupScreen() {
   const finish = async (payload: OnboardingAnswers) => {
     try {
       setSubmitting(true);
+      // Decide before saving: the reminders prompt shows once, only if the phone hasn't decided yet.
+      const offerReminders = await shouldOfferReminders();
       await actions.completeOnboarding(payload);
-      router.replace('/dashboard');
+      router.replace(offerReminders ? '/reminders-intro' : '/dashboard');
     } catch (error) {
       setSubmitting(false);
       Alert.alert(

@@ -1899,7 +1899,7 @@ export function LedgerProvider({ children }: PropsWithChildren) {
   const netProfit = transactionTotals.income - transactionTotals.expenses;
   const deductibleTotal = transactionTotals.deductibleExpenses + mileageWriteOff;
   const reserveTarget = Math.max(netProfit, 0) * (state.reservePercent / 100);
-  const quarters = getQuarterEstimates(netProfit, state.reservePercent);
+  const quarters = useMemo(() => getQuarterEstimates(netProfit, state.reservePercent), [netProfit, state.reservePercent]);
   const nextQuarter = quarters.find((quarter) => quarter.status === 'Next up') ?? quarters[0];
   const reserveGap = getReserveGap(nextQuarter?.amountDue ?? 0, reserveTarget);
   const accounts = Array.from(new Set(state.transactions.map((transaction) => transaction.source)));
@@ -1918,25 +1918,25 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    // Reminders run for everyone once setup is done; scheduling never prompts for permission.
     void syncLocalReminders({
-      billingSetupComplete: state.billing.billingSetupComplete,
       hasRecentTrip,
+      hasTransactions: state.transactions.length > 0,
       mileageMode: state.profile.mileageMode,
-      nextQuarterAmount: nextQuarter?.amountDue,
-      nextQuarterDueDate: nextQuarter?.dueDate,
+      quarters,
       receiptsToReview: state.receipts.filter((receipt) => receipt.status === 'Needs review').length,
-      trialEndsAt: state.billing.trialEndsAt,
-    });
+      transactionsToReview: state.transactions.filter(
+        (transaction) => !transaction.category?.trim() || transaction.category === 'Uncategorized'
+      ).length,
+    }).catch((error) => console.warn('Reminders could not be scheduled:', error));
   }, [
     hasRecentTrip,
-    nextQuarter?.amountDue,
-    nextQuarter?.dueDate,
-    state.billing.billingSetupComplete,
-    state.billing.trialEndsAt,
+    quarters,
     state.isAuthenticated,
     state.onboardingComplete,
     state.profile.mileageMode,
     state.receipts,
+    state.transactions,
   ]);
 
   const value = useMemo<LedgerContextValue>(
