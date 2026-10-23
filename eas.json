@@ -21,7 +21,8 @@
       "env": {
         "EXPO_PUBLIC_APP_ENV": "preview",
         "EXPO_PUBLIC_BACKEND_MODE": "supabase"
-      }
+      },
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -33,7 +34,8 @@
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_BACKEND_MODE": "supabase"
-      }
+      },
+      "environment": "production"
     }
   },
   "submit": {
