@@ -8,12 +8,13 @@ import { Stack } from 'expo-router';
 import { DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { initStripe } from '@stripe/stripe-react-native';
 import 'react-native-reanimated';
 import '@/lib/mileage/background';
 
+import { IntroSplash } from '@/components/launch/intro-splash';
 import { fonts } from '@/constants/theme';
 import { env } from '@/lib/config/env';
 import { getSupabaseClient } from '@/lib/supabase/client';
@@ -44,13 +45,16 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
     [isDark, theme]
   );
 
-  const ready = fontsReady && !isHydratingAuth;
+  const [introDone, setIntroDone] = useState(false);
+  const finishIntro = useCallback(() => setIntroDone(true), []);
 
+  // The animated intro takes over from the native splash as soon as fonts are in;
+  // it keeps covering the app until the session has loaded too.
   useEffect(() => {
-    if (ready) {
+    if (fontsReady) {
       void SplashScreen.hideAsync();
     }
-  }, [ready]);
+  }, [fontsReady]);
 
   useEffect(() => {
     if (!supabase) {
@@ -130,6 +134,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="terms" options={{ title: 'Terms' }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
       </Stack>
+      {introDone ? null : <IntroSplash onDone={finishIntro} ready={!isHydratingAuth} />}
     </ThemeProvider>
   );
 }

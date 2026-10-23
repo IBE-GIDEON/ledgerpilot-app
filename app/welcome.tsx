@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -44,7 +45,7 @@ export default function WelcomeScreen() {
       <View style={[styles.bottom, { paddingHorizontal: gutter, paddingBottom: insets.bottom + space.lg }]}>
         <View style={styles.message}>
           <View style={styles.mark}>
-            <Text style={styles.markLetter}>L</Text>
+            <Image accessibilityLabel="Lancer" source={require('@/assets/images/logo.png')} style={styles.markLogo} />
           </View>
           <Text accessibilityRole="header" style={styles.headline}>
             {'Your money,\nsorted.'}
@@ -97,11 +98,9 @@ const styles = StyleSheet.create({
     marginBottom: space.xs,
     width: 40,
   },
-  markLetter: {
-    color: '#0B0B0C',
-    fontFamily: fonts.display,
-    fontSize: 22,
-    lineHeight: 26,
+  markLogo: {
+    height: 26,
+    width: 26,
   },
   headline: {
     color: '#FFFFFF',

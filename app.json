@@ -22,7 +22,7 @@
     "android": {
       "package": "com.ibegideon.lancer",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0B0C",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -63,11 +63,11 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 140,
+          "imageWidth": 120,
           "resizeMode": "contain",
-          "backgroundColor": "#0B0B0C",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "backgroundColor": "#0B0B0C"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],
