@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, useGutter } from '@/components/ds';
 import { GoogleButton } from '@/components/onboarding-v2/google-button';
 import { WordCycle } from '@/components/onboarding-v2/word-cycle';
-import { fonts, radius, space } from '@/constants/theme';
+import { fonts, space } from '@/constants/theme';
 import { useLedger } from '@/providers/ledger-provider';
 
 // What the user does in Lancer. Lancer records and estimates; it never holds or moves money.
@@ -107,17 +107,11 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   mark: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.sm,
-    height: 40,
-    justifyContent: 'center',
     marginBottom: space.xs,
-    width: 40,
   },
   markLogo: {
-    height: 26,
-    width: 26,
+    height: 44,
+    width: 44,
   },
   headline: {
     color: '#FFFFFF',

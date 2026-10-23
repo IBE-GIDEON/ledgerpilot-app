@@ -17,7 +17,8 @@ import { fonts } from '@/constants/theme';
 
 /** Matches `imageWidth` of expo-splash-screen in app.json so the hand-off is seamless. */
 const LOGO_SIZE = 120;
-const INK = '#0B0B0C';
+const BACKGROUND = '#0B0B0C';
+const NAME = '#FFFFFF';
 const ASH = '#8E8E93';
 
 type IntroSplashProps = {
@@ -107,7 +108,7 @@ export function IntroSplash({ ready, onDone }: IntroSplashProps) {
 
   return (
     <Animated.View accessibilityLabel="Lancer" accessible style={[StyleSheet.absoluteFill, styles.layer, layerStyle]}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <View style={styles.center}>
         <Animated.View style={logoStyle}>
           <Image
@@ -128,7 +129,7 @@ export function IntroSplash({ ready, onDone }: IntroSplashProps) {
 
 const styles = StyleSheet.create({
   layer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: BACKGROUND,
     zIndex: 100,
   },
   center: {
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     marginTop: LOGO_SIZE / 2 + 4,
   },
   name: {
-    color: INK,
+    color: NAME,
     fontFamily: fonts.display,
     fontSize: 34,
     letterSpacing: -0.6,
