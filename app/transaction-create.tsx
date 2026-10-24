@@ -135,7 +135,7 @@ export default function TransactionCreateScreen() {
   };
 
   return (
-    <Screen header keyboard>
+    <Screen header>
       {/* Cancel and Save live in the header so the keyboard can never hide them. */}
       <Stack.Screen
         options={{

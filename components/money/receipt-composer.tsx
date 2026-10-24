@@ -208,7 +208,6 @@ function ComposerBody({ request, onClose }: { request: ReceiptRequest; onClose: 
 
   return (
     <Screen
-      keyboard
       footer={
         <Button
           disabled={busy}

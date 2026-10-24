@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { initStripe } from '@stripe/stripe-react-native';
 import 'react-native-reanimated';
 import '@/lib/mileage/background';
@@ -151,10 +152,12 @@ export default function RootLayout() {
   });
 
   return (
-    <AppThemeProvider>
-      <LedgerProvider>
-        <AppNavigator fontsReady={fontsLoaded || Boolean(fontError)} />
-      </LedgerProvider>
-    </AppThemeProvider>
+    <KeyboardProvider>
+      <AppThemeProvider>
+        <LedgerProvider>
+          <AppNavigator fontsReady={fontsLoaded || Boolean(fontError)} />
+        </LedgerProvider>
+      </AppThemeProvider>
+    </KeyboardProvider>
   );
 }

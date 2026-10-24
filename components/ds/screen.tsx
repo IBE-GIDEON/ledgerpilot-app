@@ -1,14 +1,6 @@
-import { PropsWithChildren, ReactElement } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  RefreshControlProps,
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { PropsWithChildren, ReactElement, useState } from 'react';
+import { Platform, RefreshControlProps, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { space } from '@/constants/theme';
@@ -19,19 +11,20 @@ type ScreenProps = PropsWithChildren<
   ScreenChrome & {
     /** Wrap content in a ScrollView (default). Set false when the screen hosts its own FlatList. */
     scroll?: boolean;
-    /** Lift content above the keyboard for forms. */
-    keyboard?: boolean;
     contentStyle?: StyleProp<ViewStyle>;
     refreshControl?: ReactElement<RefreshControlProps>;
-    /** Pinned below the scroll area, e.g. a primary action. Sits above the home indicator. */
+    /** Pinned below the scroll area, e.g. a primary action. Rides above the keyboard when it opens. */
     footer?: React.ReactNode;
   }
 >;
 
+/**
+ * Every screen's root. Scrolling screens keep the focused field above the keyboard
+ * on iOS and Android; a footer action sticks to the top of the keyboard.
+ */
 export function Screen({
   children,
   scroll = true,
-  keyboard = false,
   header = false,
   tab = false,
   contentStyle,
@@ -42,7 +35,9 @@ export function Screen({
   const gutter = useGutter();
   const manual = useManualInsets({ header, tab });
   const insets = useSafeAreaInsets();
+  const [footerHeight, setFooterHeight] = useState(0);
 
+  const footerBottom = Math.max(insets.bottom, space.lg);
   const padding = {
     paddingHorizontal: gutter,
     paddingTop: manual.top + space.lg,
@@ -50,7 +45,9 @@ export function Screen({
   };
 
   const body = scroll ? (
-    <ScrollView
+    <KeyboardAwareScrollView
+      // Leave room for the footer that rides on the keyboard, plus a little breathing space.
+      bottomOffset={footerHeight + space.xl}
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
@@ -59,7 +56,7 @@ export function Screen({
       style={styles.flex}
       contentContainerStyle={[styles.content, padding, contentStyle]}>
       {children}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   ) : (
     <View
       style={[
@@ -75,39 +72,27 @@ export function Screen({
     </View>
   );
 
-  const footerView = footer ? (
-    <View
-      style={[
-        styles.footer,
-        {
-          borderTopColor: theme.border,
-          backgroundColor: theme.background,
-          paddingHorizontal: gutter,
-          paddingBottom: Math.max(insets.bottom, space.lg),
-        },
-      ]}>
-      {footer}
-    </View>
-  ) : null;
-
-  const inner = (
-    <>
-      {body}
-      {footerView}
-    </>
-  );
-
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
-      {keyboard ? (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.flex}>
-          {inner}
-        </KeyboardAvoidingView>
-      ) : (
-        inner
-      )}
+      {body}
+      {footer ? (
+        // When the keyboard opens, drop the home-indicator padding so the footer sits snug on it.
+        <KeyboardStickyView offset={{ closed: 0, opened: footerBottom - space.md }}>
+          <View
+            onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+            style={[
+              styles.footer,
+              {
+                borderTopColor: theme.border,
+                backgroundColor: theme.background,
+                paddingHorizontal: gutter,
+                paddingBottom: footerBottom,
+              },
+            ]}>
+            {footer}
+          </View>
+        </KeyboardStickyView>
+      ) : null}
     </View>
   );
 }

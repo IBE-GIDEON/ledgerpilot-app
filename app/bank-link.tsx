@@ -178,8 +178,7 @@ function BankLinkScreen() {
           onPress={() => handleOpenPlaid()}
         />
       }
-      header
-      keyboard>
+      header>
       <Field
         autoCapitalize="none"
         autoCorrect={false}

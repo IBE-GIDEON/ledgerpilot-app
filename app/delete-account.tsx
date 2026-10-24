@@ -40,7 +40,6 @@ export default function DeleteAccountScreen() {
   return (
     <Screen
       header
-      keyboard
       footer={
         <Button
           disabled={!confirmed}

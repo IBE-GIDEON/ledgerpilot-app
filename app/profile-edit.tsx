@@ -82,7 +82,6 @@ export default function ProfileEditScreen() {
   return (
     <Screen
       header
-      keyboard
       footer={<Button label="Save" loading={saving} onPress={() => void handleSave()} />}>
       <View style={styles.photo}>
         <Avatar name={name || profile.name} size={72} uri={profile.avatarUrl} />

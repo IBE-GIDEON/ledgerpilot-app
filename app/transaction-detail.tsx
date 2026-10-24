@@ -200,7 +200,7 @@ export default function TransactionDetailScreen() {
   };
 
   return (
-    <Screen header keyboard>
+    <Screen header>
       <Card tone="primary">
         <Text numberOfLines={1} tone="inverse" variant="subheading">
           {transaction.merchant}

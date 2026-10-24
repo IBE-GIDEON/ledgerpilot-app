@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Amount, Badge, Card, Chip, EmptyState, List, Row, Section, Text, useGutter } from '@/components/ds';
@@ -77,7 +78,11 @@ export default function SearchScreen() {
             value={raw}
           />
           {raw ? (
-            <Pressable accessibilityLabel="Clear search" accessibilityRole="button" hitSlop={10} onPress={() => setRaw('')}>
+            <Pressable
+              accessibilityLabel="Clear search"
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={() => setRaw('')}>
               <Ionicons color={theme.textFaint} name="close-circle" size={18} />
             </Pressable>
           ) : null}
@@ -87,121 +92,120 @@ export default function SearchScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingHorizontal: gutter, paddingBottom: insets.bottom + space.xxl },
-          ]}
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled">
-          {!results ? (
-            suggestions.length > 0 ? (
-              <Section title="Categories">
-                <View style={styles.chips}>
-                  {suggestions.map((category) => (
-                    <Chip key={category} label={category} onPress={() => setRaw(category)} />
-                  ))}
-                </View>
-              </Section>
-            ) : (
-              <EmptyState
-                body="Transactions, receipts and trips all show up here."
-                icon="search-outline"
-                title="Search everything"
-              />
-            )
-          ) : total === 0 ? (
-            <EmptyState body="Try a merchant, a category or an amount." icon="search-outline" title="No matches" />
+      <KeyboardAwareScrollView
+        style={styles.flex}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: gutter, paddingBottom: insets.bottom + space.xxl },
+        ]}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled">
+        {!results ? (
+          suggestions.length > 0 ? (
+            <Section title="Categories">
+              <View style={styles.chips}>
+                {suggestions.map((category) => (
+                  <Chip key={category} label={category} onPress={() => setRaw(category)} />
+                ))}
+              </View>
+            </Section>
           ) : (
-            <>
-              {results.totals.count > 0 ? (
-                <Card tone="primary">
-                  <Text tone="inverseMuted" variant="smallMedium">
-                    {results.totals.spent > 0 ? 'Spent this year' : 'Earned this year'}
-                  </Text>
-                  <Amount
-                    cents
-                    size="display"
-                    tone="inverse"
-                    value={results.totals.spent > 0 ? results.totals.spent : results.totals.earned}
-                  />
-                  <Text tone="inverseMuted" variant="small">
-                    {[
-                      `${results.totals.count} ${results.totals.count === 1 ? 'transaction' : 'transactions'}`,
-                      results.totals.spent > 0 && results.totals.earned > 0
-                        ? `earned ${formatCurrency(results.totals.earned, 2)}`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Text>
-                </Card>
-              ) : null}
+            <EmptyState
+              body="Transactions, receipts and trips all show up here."
+              icon="search-outline"
+              title="Search everything"
+            />
+          )
+        ) : total === 0 ? (
+          <EmptyState body="Try a merchant, a category or an amount." icon="search-outline" title="No matches" />
+        ) : (
+          <>
+            {results.totals.count > 0 ? (
+              <Card tone="primary">
+                <Text tone="inverseMuted" variant="smallMedium">
+                  {results.totals.spent > 0 ? 'Spent this year' : 'Earned this year'}
+                </Text>
+                <Amount
+                  cents
+                  size="display"
+                  tone="inverse"
+                  value={results.totals.spent > 0 ? results.totals.spent : results.totals.earned}
+                />
+                <Text tone="inverseMuted" variant="small">
+                  {[
+                    `${results.totals.count} ${results.totals.count === 1 ? 'transaction' : 'transactions'}`,
+                    results.totals.spent > 0 && results.totals.earned > 0
+                      ? `earned ${formatCurrency(results.totals.earned, 2)}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              </Card>
+            ) : null}
 
-              {results.transactions.length > 0 ? (
-                <Section
-                  footnote={overflow(results.transactions.length)}
-                  title={`Transactions · ${results.transactions.length}`}>
-                  <List>
-                    {results.transactions.slice(0, GROUP_LIMIT).map((item) => {
-                      const amount = Math.abs(item.amount);
-                      return (
-                        <Row
-                          key={item.id}
-                          onPress={() => router.push({ pathname: '/transaction-detail', params: { id: item.id } })}
-                          subtitle={`${item.category || 'Uncategorized'} · ${formatDate(item.date)}`}
-                          title={item.merchant}
-                          trailing={<Amount signed size="bodyMedium" value={item.kind === 'income' ? amount : -amount} />}
-                        />
-                      );
-                    })}
-                  </List>
-                </Section>
-              ) : null}
-
-              {results.receipts.length > 0 ? (
-                <Section footnote={overflow(results.receipts.length)} title={`Receipts · ${results.receipts.length}`}>
-                  <List>
-                    {results.receipts.slice(0, GROUP_LIMIT).map((item) => (
+            {results.transactions.length > 0 ? (
+              <Section
+                footnote={overflow(results.transactions.length)}
+                title={`Transactions · ${results.transactions.length}`}>
+                <List>
+                  {results.transactions.slice(0, GROUP_LIMIT).map((item) => {
+                    const amount = Math.abs(item.amount);
+                    return (
                       <Row
                         key={item.id}
-                        icon="receipt-outline"
-                        onPress={() => openReceipt(item.id)}
+                        onPress={() => router.push({ pathname: '/transaction-detail', params: { id: item.id } })}
                         subtitle={`${item.category || 'Uncategorized'} · ${formatDate(item.date)}`}
-                        title={item.vendor}
-                        trailing={
-                          <View style={styles.trailing}>
-                            {item.status === 'Needs review' ? <Badge label="Review" tone="accent" /> : null}
-                            <Amount size="bodyMedium" value={item.amount} />
-                          </View>
-                        }
+                        title={item.merchant}
+                        trailing={<Amount signed size="bodyMedium" value={item.kind === 'income' ? amount : -amount} />}
                       />
-                    ))}
-                  </List>
-                </Section>
-              ) : null}
+                    );
+                  })}
+                </List>
+              </Section>
+            ) : null}
 
-              {results.trips.length > 0 ? (
-                <Section footnote={overflow(results.trips.length)} title={`Trips · ${results.trips.length}`}>
-                  <List>
-                    {results.trips.slice(0, GROUP_LIMIT).map((item) => (
-                      <Row
-                        key={item.id}
-                        icon="car-outline"
-                        onPress={() => router.push('/mileage')}
-                        subtitle={item.purpose ? `${item.purpose} · ${formatDate(item.date)}` : formatDate(item.date)}
-                        title={`${item.startLabel} → ${item.endLabel}`}
-                        value={`${item.miles} mi`}
-                      />
-                    ))}
-                  </List>
-                </Section>
-              ) : null}
-            </>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+            {results.receipts.length > 0 ? (
+              <Section footnote={overflow(results.receipts.length)} title={`Receipts · ${results.receipts.length}`}>
+                <List>
+                  {results.receipts.slice(0, GROUP_LIMIT).map((item) => (
+                    <Row
+                      key={item.id}
+                      icon="receipt-outline"
+                      onPress={() => openReceipt(item.id)}
+                      subtitle={`${item.category || 'Uncategorized'} · ${formatDate(item.date)}`}
+                      title={item.vendor}
+                      trailing={
+                        <View style={styles.trailing}>
+                          {item.status === 'Needs review' ? <Badge label="Review" tone="accent" /> : null}
+                          <Amount size="bodyMedium" value={item.amount} />
+                        </View>
+                      }
+                    />
+                  ))}
+                </List>
+              </Section>
+            ) : null}
+
+            {results.trips.length > 0 ? (
+              <Section footnote={overflow(results.trips.length)} title={`Trips · ${results.trips.length}`}>
+                <List>
+                  {results.trips.slice(0, GROUP_LIMIT).map((item) => (
+                    <Row
+                      key={item.id}
+                      icon="car-outline"
+                      onPress={() => router.push('/mileage')}
+                      subtitle={item.purpose ? `${item.purpose} · ${formatDate(item.date)}` : formatDate(item.date)}
+                      title={`${item.startLabel} → ${item.endLabel}`}
+                      value={`${item.miles} mi`}
+                    />
+                  ))}
+                </List>
+              </Section>
+            ) : null}
+          </>
+        )}
+      </KeyboardAwareScrollView>
     </View>
   );
 }

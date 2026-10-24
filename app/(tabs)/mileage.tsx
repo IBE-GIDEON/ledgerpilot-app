@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, ListRenderItem, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, ListRenderItem, ScrollViewProps, StyleSheet, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import {
   Amount,
@@ -24,6 +25,8 @@ import { useLedger } from '@/providers/ledger-provider';
 import { MileageTrip } from '@/types/ledger';
 
 const milesFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+
+const renderKeyboardAwareScroll = (props: ScrollViewProps) => <KeyboardAwareScrollView bottomOffset={24} {...props} />;
 
 export default function MileageScreen() {
   const { actions, metrics, trips } = useLedger();
@@ -127,7 +130,7 @@ export default function MileageScreen() {
   );
 
   return (
-    <Screen contentStyle={styles.noGutter} keyboard scroll={false} tab>
+    <Screen contentStyle={styles.noGutter} scroll={false} tab>
       <FlatList
         ItemSeparatorComponent={Separator}
         ListEmptyComponent={
@@ -139,6 +142,8 @@ export default function MileageScreen() {
           />
         }
         ListHeaderComponent={header}
+        // Keeps the add-trip fields in the list header above the keyboard.
+        renderScrollComponent={renderKeyboardAwareScroll}
         contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: bottomInset + 32 }}
         contentInsetAdjustmentBehavior="automatic"
         data={trips}
