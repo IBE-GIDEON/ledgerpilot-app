@@ -31,13 +31,15 @@ function GoogleMark({ size = 20 }: { size?: number }) {
 type GoogleButtonProps = {
   onPress: () => void;
   loading?: boolean;
+  /** Defaults to "Continue with Google". */
+  label?: string;
 };
 
 /** White "Continue with Google" button with the Google mark. */
-export function GoogleButton({ onPress, loading = false }: GoogleButtonProps) {
+export function GoogleButton({ onPress, loading = false, label = 'Continue with Google' }: GoogleButtonProps) {
   return (
     <Pressable
-      accessibilityLabel="Continue with Google"
+      accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ busy: loading, disabled: loading }}
       disabled={loading}
@@ -48,7 +50,7 @@ export function GoogleButton({ onPress, loading = false }: GoogleButtonProps) {
       ) : (
         <>
           <GoogleMark />
-          <Text style={styles.label}>Continue with Google</Text>
+          <Text style={styles.label}>{label}</Text>
         </>
       )}
     </Pressable>

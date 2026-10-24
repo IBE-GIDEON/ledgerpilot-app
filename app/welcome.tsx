@@ -1,15 +1,17 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text, useGutter } from '@/components/ds';
 import { GoogleButton } from '@/components/onboarding-v2/google-button';
+import { RecentAccountRow } from '@/components/onboarding-v2/recent-account-row';
 import { WordCycle } from '@/components/onboarding-v2/word-cycle';
 import { fonts, space } from '@/constants/theme';
+import { forgetAccount, loadRecentAccounts, RecentAccount } from '@/lib/auth/recent-accounts';
 import { useLedger } from '@/providers/ledger-provider';
 
 // What the user does in Lancer. Lancer records and estimates; it never holds or moves money.
@@ -20,18 +22,31 @@ const words = [
   { label: 'Estimate taxes', icon: 'calculator-outline' },
 ] as const;
 
-/** First screen after the splash: light at the top fading to black, one message, one way in. Never scrolls. */
+/**
+ * First screen after the splash. New visitors get one message and one way in; people who have signed in
+ * before get their remembered accounts for a one-tap return. Never scrolls.
+ */
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const gutter = useGutter();
   const { auth, authBusy } = useLedger();
   const [error, setError] = useState<string | null>(null);
+  const [recent, setRecent] = useState<RecentAccount[]>([]);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
-  const continueWithGoogle = async () => {
+  // Reload on every visit: signing out of one account should immediately list it here.
+  useFocusEffect(
+    useCallback(() => {
+      void loadRecentAccounts().then(setRecent);
+    }, [])
+  );
+
+  const continueWithGoogle = async (email?: string) => {
     setError(null);
+    setPendingEmail(email ?? null);
     try {
-      await auth.signInWithGoogle();
+      await auth.signInWithGoogle(email);
       router.replace('/');
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Google sign-in failed. Try again.';
@@ -39,8 +54,27 @@ export default function WelcomeScreen() {
       if (!/cancel/i.test(message)) {
         setError(message);
       }
+    } finally {
+      setPendingEmail(null);
     }
   };
+
+  const confirmForget = (account: RecentAccount) => {
+    Alert.alert('Remove from this phone?', `${account.email} won't show here. Your Lancer data isn't affected.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          void forgetAccount(account.email).then(() =>
+            setRecent((items) => items.filter((item) => item.email !== account.email))
+          );
+        },
+      },
+    ]);
+  };
+
+  const returning = recent.length > 0;
 
   return (
     <View style={styles.root}>
@@ -61,15 +95,31 @@ export default function WelcomeScreen() {
             <Image accessibilityLabel="Lancer" source={require('@/assets/images/logo.png')} style={styles.markLogo} />
           </View>
           <Text accessibilityRole="header" style={styles.headline}>
-            {'Freelance taxes,\nsorted.'}
+            {returning ? 'Welcome back' : 'Freelance taxes,\nsorted.'}
           </Text>
           <Text style={styles.caption}>
-            Track what you earn and spend, find deductions, and know exactly what to save for tax.
+            {returning
+              ? 'Pick an account to continue.'
+              : 'Track what you earn and spend, find deductions, and know exactly what to save for tax.'}
           </Text>
         </View>
 
         <View style={styles.actions}>
-          <GoogleButton loading={authBusy} onPress={() => void continueWithGoogle()} />
+          {recent.map((account) => (
+            <RecentAccountRow
+              key={account.email}
+              account={account}
+              disabled={authBusy}
+              loading={authBusy && pendingEmail === account.email}
+              onLongPress={() => confirmForget(account)}
+              onPress={() => void continueWithGoogle(account.email)}
+            />
+          ))}
+          <GoogleButton
+            label={returning ? 'Use another account' : undefined}
+            loading={authBusy && pendingEmail === null}
+            onPress={() => void continueWithGoogle()}
+          />
           {error ? (
             <Text accessibilityLiveRegion="polite" accessibilityRole="alert" align="center" style={styles.error}>
               {error}

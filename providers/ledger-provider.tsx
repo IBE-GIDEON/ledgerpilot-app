@@ -36,6 +36,7 @@ import {
   mapTransactionRowToTransaction,
   mapTripRowToMileageTrip,
 } from '@/lib/backend/mappers';
+import { forgetAccount, rememberAccount } from '@/lib/auth/recent-accounts';
 import { env, usingSupabaseBackend } from '@/lib/config/env';
 import {
   defaultBilling,
@@ -157,7 +158,8 @@ interface LedgerContextValue extends LedgerState {
   };
   auth: {
     deleteAccount: () => Promise<void>;
-    signInWithGoogle: () => Promise<void>;
+    /** With an email, Google goes straight to that account; without, it shows the account picker. */
+    signInWithGoogle: (loginHint?: string) => Promise<void>;
     signInWithEmail: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
     signUpWithEmail: (params: {
@@ -697,6 +699,10 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         },
       });
 
+      if (user.email) {
+        void rememberAccount({ email: user.email, name: profile.name, avatarUrl: profile.avatarUrl ?? null });
+      }
+
       setIsHydratingAuth(false);
     },
     [supabase]
@@ -1040,7 +1046,7 @@ export function LedgerProvider({ children }: PropsWithChildren) {
     [supabase]
   );
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (loginHint?: string) => {
     if (!supabase || !usingSupabaseBackend) {
       dispatch({
         type: 'startSession',
@@ -1058,8 +1064,8 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         options: {
           redirectTo,
           skipBrowserRedirect: true,
-          // Always let people pick which Google account, even if one is already signed in.
-          queryParams: { prompt: 'select_account' },
+          // A remembered account goes straight in; otherwise always let people pick.
+          queryParams: loginHint ? { login_hint: loginHint } : { prompt: 'select_account' },
         },
       });
 
@@ -1124,12 +1130,17 @@ export function LedgerProvider({ children }: PropsWithChildren) {
     setAuthBusy(true);
 
     try {
+      const { data: current } = await supabase.auth.getUser();
       const { error } = await supabase.functions.invoke('delete-account', {
         body: { confirm: true },
       });
 
       if (error) {
         throw new Error(error.message);
+      }
+
+      if (current.user?.email) {
+        await forgetAccount(current.user.email);
       }
 
       await supabase.auth.signOut();

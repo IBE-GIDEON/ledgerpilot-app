@@ -103,6 +103,12 @@ export default function AccountScreen() {
       </List>
 
       <List>
+        {/* No confirmation: the remembered accounts on the welcome screen make switching one tap each way. */}
+        <Row
+          icon="swap-horizontal-outline"
+          onPress={() => void signOut()}
+          title={signingOut ? 'Switching…' : 'Switch account'}
+        />
         <Row icon="log-out-outline" onPress={confirmSignOut} title={signingOut ? 'Signing out…' : 'Sign out'} />
         <Row destructive icon="trash-outline" onPress={() => router.push('/delete-account')} title="Delete account" />
       </List>
