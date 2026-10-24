@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
-import { Button, Chip, Field, List, Row, Screen, Segmented, Text } from '@/components/ds';
+import { Chip, Field, HeaderButton, List, Row, Screen, Segmented, Text } from '@/components/ds';
 import { categoryOptionsFor, internalSources, parseAmount } from '@/components/money/money-utils';
 import { choosePhotoSource, pickReceiptImage } from '@/components/money/receipt-capture';
 import { SwitchRow } from '@/components/ds/switch-row';
@@ -73,6 +73,14 @@ export default function TransactionCreateScreen() {
     ]);
   };
 
+  const close = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/activity');
+    }
+  };
+
   const save = async () => {
     const parsed = parseAmount(amount);
     const nextErrors = {
@@ -114,11 +122,7 @@ export default function TransactionCreateScreen() {
         source,
       });
 
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/activity');
-      }
+      close();
     } catch (error) {
       if (storagePath) {
         await removeUploadedReceiptAsset(storagePath);
@@ -131,7 +135,14 @@ export default function TransactionCreateScreen() {
   };
 
   return (
-    <Screen header keyboard footer={<Button label="Save" loading={saving} onPress={() => void save()} />}>
+    <Screen header keyboard>
+      {/* Cancel and Save live in the header so the keyboard can never hide them. */}
+      <Stack.Screen
+        options={{
+          headerLeft: () => <HeaderButton label="Cancel" onPress={close} />,
+          headerRight: () => <HeaderButton label="Save" loading={saving} onPress={() => void save()} primary />,
+        }}
+      />
       <Segmented labels={kindLabels} onChange={changeKind} options={kinds} value={kind} />
 
       <Field

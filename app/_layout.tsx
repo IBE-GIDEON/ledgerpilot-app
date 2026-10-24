@@ -9,7 +9,7 @@ import { DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState } from 'react-native';
 import { initStripe } from '@stripe/stripe-react-native';
 import 'react-native-reanimated';
 import '@/lib/mileage/background';
@@ -99,7 +99,8 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
     return null;
   }
 
-  const modal = Platform.OS === 'ios' ? ('formSheet' as const) : ('modal' as const);
+  // Full-height card on iOS. formSheet sizes to its content, which collapses scrolling forms.
+  const modal = 'modal' as const;
 
   return (
     <ThemeProvider value={navigationTheme}>
