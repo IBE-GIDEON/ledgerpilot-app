@@ -86,7 +86,16 @@
       "expo-font",
       "expo-image",
       "expo-status-bar",
-      "./plugins/with-skip-lint-vital"
+      "./plugins/with-skip-lint-vital",
+      "expo-sharing",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# Stripe pulls in Google Wallet push provisioning, which Lancer does not use.\n-dontwarn com.stripe.android.pushProvisioning.**\n"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

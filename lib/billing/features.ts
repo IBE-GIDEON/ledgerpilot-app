@@ -60,22 +60,22 @@ export const plans: {
 }[] = [
   {
     tier: 'Lite',
-    monthly: '$9',
-    annual: '$79',
+    monthly: '$3',
+    annual: '$29',
     summary: 'A clean home for income, expenses, receipts and miles.',
     features: ['Manual tracking', 'Profit summary', 'Deduction tags'],
   },
   {
     tier: 'Pro',
-    monthly: '$19',
-    annual: '$159',
+    monthly: '$6',
+    annual: '$59',
     summary: 'Everything automatic, with tax handled every quarter.',
     features: [...(featureFlags.bankSync ? ['Bank sync'] : []), 'Receipt scanning', 'Quarterly tax', 'Auto mileage'],
   },
   {
     tier: 'Tax+',
-    monthly: '$29',
-    annual: '$249',
+    monthly: '$12',
+    annual: '$119',
     summary: 'Filing season without the scramble.',
     features: ['Everything in Pro', 'CPA packet', 'Priority support'],
   },
