@@ -7,9 +7,8 @@
     "icon": "./assets/images/icon.png",
     "scheme": "lancer",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "checkAutomatically": "ON_LOAD",

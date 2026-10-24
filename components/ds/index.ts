@@ -1,5 +1,6 @@
 export { Button, IconButton } from '@/components/ds/button';
 export { Badge, Chip, EmptyState, Field, PageHeader, Progress, Segmented, Stat } from '@/components/ds/controls';
+export type { FieldHandle } from '@/components/ds/controls';
 export { MAX_CONTENT_WIDTH, useGutter, useManualInsets } from '@/components/ds/layout';
 export { Photo } from '@/components/ds/photo';
 export { ProGate, useFeature } from '@/components/ds/pro-gate';

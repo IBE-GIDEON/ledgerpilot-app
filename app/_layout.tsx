@@ -73,7 +73,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
       supabase.auth.stopAutoRefresh();
     };
 
-    handleAppStateChange(AppState.currentState);
+    handleAppStateChange(AppState.currentState ?? 'active');
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {

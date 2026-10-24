@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ComponentProps, forwardRef, ReactNode, useState } from 'react';
+import { ComponentProps, ComponentRef, forwardRef, ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 
 import { Button } from '@/components/ds/button';
@@ -18,7 +18,10 @@ type FieldProps = TextInputProps & {
   prefix?: string;
 };
 
-export const Field = forwardRef<TextInput, FieldProps>(function Field(
+/** What a ref to `Field` points at: the native text input (focus, blur, clear). */
+export type FieldHandle = ComponentRef<typeof TextInput>;
+
+export const Field = forwardRef<FieldHandle, FieldProps>(function Field(
   { label, error, hint, prefix, style, onFocus, onBlur, ...rest },
   ref
 ) {

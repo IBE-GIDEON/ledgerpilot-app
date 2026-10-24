@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-import { Alert, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
-import { Button, Card, Field, IconButton, Segmented, Text } from '@/components/ds';
+import { Button, Card, Field, FieldHandle, IconButton, Segmented, Text } from '@/components/ds';
 import { space } from '@/constants/theme';
 import { AddTripPayload } from '@/lib/backend/payloads';
 import { TripClassification } from '@/types/ledger';
@@ -22,9 +22,9 @@ export function AddTripCard({ onAdd, onClose }: AddTripCardProps) {
   const [classification, setClassification] = useState<TripClassification>('Business');
   const [saving, setSaving] = useState(false);
 
-  const endRef = useRef<TextInput>(null);
-  const milesRef = useRef<TextInput>(null);
-  const purposeRef = useRef<TextInput>(null);
+  const endRef = useRef<FieldHandle>(null);
+  const milesRef = useRef<FieldHandle>(null);
+  const purposeRef = useRef<FieldHandle>(null);
 
   const handleSave = async () => {
     const parsedMiles = Number(miles.replace(',', '.'));

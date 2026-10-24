@@ -606,7 +606,7 @@ export function LedgerProvider({ children }: PropsWithChildren) {
   const [authBusy, setAuthBusy] = useState(false);
   const supabase = useMemo(() => getSupabaseClient(), []);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<AppStateStatus>((AppState.currentState as AppStateStatus | null | undefined) ?? 'active');
 
   const hydrateFromSessionUser = useCallback(
     async (user: User, options?: { showLoader?: boolean }) => {

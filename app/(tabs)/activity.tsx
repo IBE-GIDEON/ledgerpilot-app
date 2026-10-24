@@ -378,7 +378,7 @@ export default function MoneyScreen() {
         <FlatList
           {...listProps}
           ListEmptyComponent={receiptsEmpty}
-          ListHeaderComponent={receiptsHeader}
+          ListHeaderComponent={receiptsHeader ?? undefined}
           data={visibleReceipts}
           keyExtractor={(item) => item.id}
           renderItem={renderReceipt}
