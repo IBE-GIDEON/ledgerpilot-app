@@ -30,6 +30,7 @@ export const defaultProfile: UserProfile = {
   name: '',
   role: '',
   homeState: '',
+  currency: 'USD',
   incomeStyle: 'Mixed payouts',
   primaryFocus: 'Everything in one place',
   mileageMode: 'Sometimes',

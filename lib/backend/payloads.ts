@@ -47,6 +47,7 @@ export type UpdateTransactionPayload = {
 };
 
 export type OnboardingPayload = {
+  currency: string;
   incomeStyle: IncomeStyle;
   mileageMode: MileageMode;
   primaryFocus: SetupFocus;
@@ -54,6 +55,7 @@ export type OnboardingPayload = {
 };
 
 export type UpdateProfilePayload = {
+  currency: string;
   homeState: string;
   name: string;
   role: string;

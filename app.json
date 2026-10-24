@@ -95,7 +95,8 @@
             "extraProguardRules": "# Stripe pulls in Google Wallet push provisioning, which Lancer does not use.\n-dontwarn com.stripe.android.pushProvisioning.**\n"
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

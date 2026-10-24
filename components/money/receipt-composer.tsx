@@ -7,6 +7,8 @@ import { Button, Card, Chip, Field, Screen, Text, useFeature } from '@/component
 import { CaptureSource, pickReceiptImage } from '@/components/money/receipt-capture';
 import { parseAmount, uncategorized } from '@/components/money/money-utils';
 import { radius, space, tabularNums } from '@/constants/theme';
+import { currencySymbol } from '@/lib/currencies';
+import { getDisplayCurrency } from '@/lib/formatters';
 import { featureCopy } from '@/lib/billing/features';
 import { expenseCategories } from '@/lib/mock-data';
 import {
@@ -318,7 +320,7 @@ function ComposerBody({ request, onClose }: { request: ReceiptRequest; onClose: 
         label="Amount"
         onChangeText={setAmount}
         placeholder="0.00"
-        prefix="$"
+        prefix={currencySymbol(getDisplayCurrency())}
         style={tabularNums}
         value={amount}
       />

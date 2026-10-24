@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/account/avatar';
-import { Button, Field, Screen, Section, Text } from '@/components/ds';
+import { Button, Field, List, Row, Screen, Section, Text } from '@/components/ds';
 import { space } from '@/constants/theme';
+import { currencyName, currencySymbol } from '@/lib/currencies';
 import { useLedger } from '@/providers/ledger-provider';
 
 type Errors = Partial<Record<'name' | 'role' | 'homeState', string>>;
@@ -57,7 +58,6 @@ export default function ProfileEditScreen() {
     const next: Errors = {};
     if (!name.trim()) next.name = 'Add your name.';
     if (!role.trim()) next.role = 'Add what you do.';
-    if (!homeState.trim()) next.homeState = 'Add your state.';
     setErrors(next);
 
     if (Object.keys(next).length > 0) {
@@ -67,6 +67,7 @@ export default function ProfileEditScreen() {
     setSaving(true);
     try {
       await actions.updateProfile({
+        currency: profile.currency,
         homeState: homeState.trim(),
         name: name.trim(),
         role: role.trim(),
@@ -125,13 +126,23 @@ export default function ProfileEditScreen() {
         <Field
           autoCapitalize="words"
           error={errors.homeState}
-          label="Home state"
+          label="State or region (optional)"
           onChangeText={setHomeState}
-          placeholder="e.g. California"
+          placeholder="California, Lagos, Ontario"
           returnKeyType="done"
           value={homeState}
         />
       </Section>
+
+      <List>
+        <Row
+          chevron
+          icon="cash-outline"
+          onPress={() => router.push('/currency')}
+          title="Currency"
+          value={`${currencyName(profile.currency)} · ${currencySymbol(profile.currency)}`}
+        />
+      </List>
     </Screen>
   );
 }

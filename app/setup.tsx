@@ -3,14 +3,17 @@ import { Redirect, useRouter } from 'expo-router';
 import { ComponentProps, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import { CurrencyPicker } from '@/components/currency/currency-picker';
 import { Button, List, Progress, Row, Screen, Text } from '@/components/ds';
 import { space, tabularNums } from '@/constants/theme';
+import { deviceCurrency } from '@/lib/currencies';
 import { shouldOfferReminders } from '@/lib/notifications/native';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 import { IncomeStyle, MileageMode, SetupFocus } from '@/types/ledger';
 
 type OnboardingAnswers = {
+  currency: string;
   incomeStyle: IncomeStyle;
   mileageMode: MileageMode;
   primaryFocus: SetupFocus;
@@ -37,6 +40,12 @@ const steps: SetupStep[] = [
       { value: 'Consultant', icon: 'people-outline' },
       { value: 'Gig worker', icon: 'bicycle-outline' },
     ],
+  },
+  {
+    // Rendered as a searchable list of every currency rather than option rows.
+    key: 'currency',
+    title: 'Your currency',
+    options: [],
   },
   {
     key: 'incomeStyle',
@@ -77,6 +86,8 @@ export default function SetupScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<OnboardingAnswers>({
+    // New profiles start on USD; suggest the phone's region currency instead.
+    currency: profile.currency && profile.currency !== 'USD' ? profile.currency : deviceCurrency(),
     role: profile.role,
     incomeStyle: profile.incomeStyle,
     primaryFocus: profile.primaryFocus,
@@ -169,29 +180,36 @@ export default function SetupScreen() {
         {step.title}
       </Text>
 
-      <List>
-        {step.options.map((option) => {
-          const isSelected = selected === option.value;
-          return (
-            <Row
-              key={option.value}
-              accessibilityLabel={`${option.value}${option.detail ? `. ${option.detail}` : ''}${isSelected ? '. Selected' : ''}`}
-              onPress={() => setAnswers((current) => ({ ...current, [step.key]: option.value }))}
-              icon={option.icon}
-              iconTone={isSelected ? 'primary' : 'default'}
-              subtitle={option.detail}
-              title={option.value}
-              trailing={
-                <Ionicons
-                  color={isSelected ? theme.tint : theme.borderStrong}
-                  name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={24}
-                />
-              }
-            />
-          );
-        })}
-      </List>
+      {step.key === 'currency' ? (
+        <CurrencyPicker
+          onChange={(code) => setAnswers((current) => ({ ...current, currency: code }))}
+          value={answers.currency}
+        />
+      ) : (
+        <List>
+          {step.options.map((option) => {
+            const isSelected = selected === option.value;
+            return (
+              <Row
+                key={option.value}
+                accessibilityLabel={`${option.value}${option.detail ? `. ${option.detail}` : ''}${isSelected ? '. Selected' : ''}`}
+                onPress={() => setAnswers((current) => ({ ...current, [step.key]: option.value }))}
+                icon={option.icon}
+                iconTone={isSelected ? 'primary' : 'default'}
+                subtitle={option.detail}
+                title={option.value}
+                trailing={
+                  <Ionicons
+                    color={isSelected ? theme.tint : theme.borderStrong}
+                    name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={24}
+                  />
+                }
+              />
+            );
+          })}
+        </List>
+      )}
     </Screen>
   );
 }

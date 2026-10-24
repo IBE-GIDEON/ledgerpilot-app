@@ -30,6 +30,8 @@ export interface UserProfile {
   role: string;
   avatarUrl?: string | null;
   homeState: string;
+  /** ISO 4217 code every amount is shown in, e.g. "USD", "NGN", "GBP". */
+  currency: string;
   incomeStyle: IncomeStyle;
   primaryFocus: SetupFocus;
   mileageMode: MileageMode;

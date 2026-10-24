@@ -8,6 +8,8 @@ import { categoryOptionsFor, internalSources, parseAmount } from '@/components/m
 import { choosePhotoSource, pickReceiptImage } from '@/components/money/receipt-capture';
 import { SwitchRow } from '@/components/ds/switch-row';
 import { radius, space, tabularNums } from '@/constants/theme';
+import { currencySymbol } from '@/lib/currencies';
+import { getDisplayCurrency } from '@/lib/formatters';
 import { ReceiptCaptureAsset, removeUploadedReceiptAsset, uploadReceiptAsset } from '@/lib/supabase/receipts';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
@@ -152,7 +154,7 @@ export default function TransactionCreateScreen() {
         label="Amount"
         onChangeText={setAmount}
         placeholder="0.00"
-        prefix="$"
+        prefix={currencySymbol(getDisplayCurrency())}
         style={[styles.amount, tabularNums]}
         value={amount}
       />

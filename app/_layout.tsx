@@ -134,6 +134,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="bank-link" options={{ title: 'Link a bank' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="profile-edit" options={{ title: 'Profile' }} />
+        <Stack.Screen name="currency" options={{ title: 'Currency' }} />
         <Stack.Screen name="support" options={{ title: 'Help' }} />
         <Stack.Screen name="privacy" options={{ title: 'Privacy' }} />
         <Stack.Screen name="terms" options={{ title: 'Terms' }} />

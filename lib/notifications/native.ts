@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { formatCurrency } from '@/lib/formatters';
 import { MileageMode, QuarterEstimate } from '@/types/ledger';
 
 const REMINDER_CHANNEL = 'ledgerpilot-reminders';
@@ -120,8 +121,7 @@ function nextWeekday(weekday: number, hour: number) {
   return target;
 }
 
-const money = (value: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+const money = (value: number) => formatCurrency(value, 0);
 
 async function schedule(title: string, body: string, when: Date, route: ReminderRoute) {
   if (when.getTime() <= Date.now()) {

@@ -15,6 +15,7 @@ export interface Database {
           full_name: string;
           role: string;
           home_state: string;
+          currency: string;
           income_style: string;
           primary_focus: string;
           mileage_mode: string;
@@ -39,6 +40,7 @@ export interface Database {
           full_name?: string;
           role?: string;
           home_state?: string;
+          currency?: string;
           income_style?: string;
           primary_focus?: string;
           mileage_mode?: string;
@@ -62,6 +64,7 @@ export interface Database {
           full_name?: string;
           role?: string;
           home_state?: string;
+          currency?: string;
           income_style?: string;
           primary_focus?: string;
           mileage_mode?: string;

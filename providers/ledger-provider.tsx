@@ -37,6 +37,7 @@ import {
   mapTripRowToMileageTrip,
 } from '@/lib/backend/mappers';
 import { forgetAccount, rememberAccount } from '@/lib/auth/recent-accounts';
+import { setDisplayCurrency } from '@/lib/formatters';
 import { env, usingSupabaseBackend } from '@/lib/config/env';
 import {
   defaultBilling,
@@ -48,6 +49,7 @@ import {
   getAuthRedirectUrl,
 } from '@/lib/supabase/auth';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import type { Database } from '@/types/database';
 import { syncLocalReminders } from '@/lib/notifications/native';
 import {
   getQuarterEstimates,
@@ -332,6 +334,30 @@ function warnMissingBillingColumnsOnce(message: string) {
   );
 }
 
+type SupabaseClientInstance = NonNullable<ReturnType<typeof getSupabaseClient>>;
+type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
+
+/**
+ * Writes a profile update. If the database doesn't have the currency column yet (migration 0010),
+ * saves everything else instead of failing the whole write.
+ */
+async function writeProfile(supabase: SupabaseClientInstance, userId: string, values: ProfileUpdate) {
+  const { error } = await supabase.from('profiles').update(values).eq('id', userId);
+
+  if (error && 'currency' in values && /currency/i.test(error.message)) {
+    const { currency: _unsupported, ...rest } = values;
+    const retry = await supabase.from('profiles').update(rest).eq('id', userId);
+    if (retry.error) {
+      throw new Error(retry.error.message);
+    }
+    return;
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 function ledgerReducer(state: LedgerState, action: LedgerAction): LedgerState {
   switch (action.type) {
     case 'startSession':
@@ -592,6 +618,7 @@ function ledgerReducer(state: LedgerState, action: LedgerAction): LedgerState {
         ...state,
         profile: {
           ...state.profile,
+          currency: action.payload.currency,
           homeState: action.payload.homeState,
           name: action.payload.name,
           role: action.payload.role,
@@ -1396,6 +1423,7 @@ export function LedgerProvider({ children }: PropsWithChildren) {
   const updateProfile = useCallback(
     async (payload: UpdateProfilePayload) => {
       const nextPayload = {
+        currency: payload.currency || state.profile.currency,
         homeState: payload.homeState.trim() || state.profile.homeState,
         name: payload.name.trim() || state.profile.name,
         role: payload.role.trim() || state.profile.role,
@@ -1424,20 +1452,14 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         throw new Error(metadataError.message);
       }
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update(buildEditableProfileUpdate(nextPayload))
-        .eq('id', user.id);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
+      await writeProfile(supabase, user.id, buildEditableProfileUpdate(nextPayload));
 
       await hydrateFromSessionUser(user);
     },
     [
       hydrateFromSessionUser,
       state.isAuthenticated,
+      state.profile.currency,
       state.profile.homeState,
       state.profile.name,
       state.profile.role,
@@ -1889,22 +1911,18 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          ...buildProfileUpdate(payload),
-          reserve_percent: getReservePercentForIncomeStyle(payload.incomeStyle),
-        })
-        .eq('id', user.id);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
+      await writeProfile(supabase, user.id, {
+        ...buildProfileUpdate(payload),
+        reserve_percent: getReservePercentForIncomeStyle(payload.incomeStyle),
+      });
 
       await hydrateFromSessionUser(user);
     },
     [hydrateFromSessionUser, state.isAuthenticated, supabase]
   );
+
+  // Set synchronously during render so every screen below formats with the right currency on this pass.
+  setDisplayCurrency(state.profile.currency);
 
   // Every money figure is for the current calendar year, which is how taxes are filed.
   const year = useMemo(

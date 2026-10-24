@@ -22,7 +22,8 @@ import { chooseCaptureSource, pickReceiptImage } from '@/components/money/receip
 import { ReceiptComposer, ReceiptRequest } from '@/components/money/receipt-composer';
 import { SwitchRow } from '@/components/ds/switch-row';
 import { space, tabularNums } from '@/constants/theme';
-import { formatFullDate } from '@/lib/formatters';
+import { currencySymbol } from '@/lib/currencies';
+import { formatFullDate, getDisplayCurrency } from '@/lib/formatters';
 import { UpdateTransactionPayload } from '@/lib/backend/payloads';
 import { useLedger } from '@/providers/ledger-provider';
 import { Transaction, TransactionKind } from '@/types/ledger';
@@ -226,7 +227,7 @@ export default function TransactionDetailScreen() {
             keyboardType="decimal-pad"
             label="Amount"
             onChangeText={setDraftAmount}
-            prefix="$"
+            prefix={currencySymbol(getDisplayCurrency())}
             style={tabularNums}
             value={draftAmount}
           />

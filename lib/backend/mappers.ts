@@ -34,6 +34,7 @@ export function mapProfileRowToUserProfile(row: ProfileRow): UserProfile {
     role: row.role,
     avatarUrl: row.avatar_url,
     homeState: row.home_state,
+    currency: row.currency ?? 'USD',
     incomeStyle: row.income_style as UserProfile['incomeStyle'],
     primaryFocus: row.primary_focus as UserProfile['primaryFocus'],
     mileageMode: row.mileage_mode as UserProfile['mileageMode'],
@@ -56,6 +57,7 @@ export function mapProfileRowToBillingSnapshot(row: ProfileRow): BillingSnapshot
 export function buildProfileUpdate(payload: OnboardingPayload): ProfileUpdate {
   return {
     role: payload.role,
+    currency: payload.currency,
     income_style: payload.incomeStyle,
     primary_focus: payload.primaryFocus,
     mileage_mode: payload.mileageMode,
@@ -68,6 +70,7 @@ export function buildEditableProfileUpdate(payload: UpdateProfilePayload): Profi
     full_name: payload.name,
     role: payload.role,
     home_state: payload.homeState,
+    currency: payload.currency,
   };
 }
 
