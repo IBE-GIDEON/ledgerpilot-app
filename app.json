@@ -85,7 +85,8 @@
       ],
       "expo-font",
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      "./plugins/with-skip-lint-vital"
     ],
     "experiments": {
       "typedRoutes": true,
