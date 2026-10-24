@@ -65,3 +65,79 @@ export function getReserveGap(nextQuarterAmount: number, reserveTarget: number):
   const quarterShare = reserveTarget / 4;
   return Math.max(0, nextQuarterAmount - quarterShare);
 }
+
+/** Expenses filed under this category are tax already paid, not business costs. */
+export const TAX_PAYMENT_CATEGORY = 'Taxes';
+
+export function isTaxPayment(transaction: Transaction) {
+  return transaction.kind === 'expense' && transaction.category?.trim().toLowerCase() === 'taxes';
+}
+
+function inYear(date: string, year: number) {
+  return new Date(date).getFullYear() === year;
+}
+
+export type YearSummary = {
+  year: number;
+  income: number;
+  /** Business expenses only; tax payments are counted separately. */
+  expenses: number;
+  deductibleExpenses: number;
+  mileageWriteOff: number;
+  netProfit: number;
+  /** What to set aside for the year at the chosen rate. */
+  reserveTarget: number;
+  /** Payments recorded in the Taxes category this year. */
+  taxPaid: number;
+  /** Set-aside still not covered by payments. */
+  stillToSetAside: number;
+  /** Profit left after the year's tax set-aside. */
+  afterTaxIncome: number;
+};
+
+/** Everything the money summaries show, for one calendar year. */
+export function getYearSummary(
+  transactions: Transaction[],
+  trips: MileageTrip[],
+  reservePercent: number,
+  year = new Date().getFullYear()
+): YearSummary {
+  let income = 0;
+  let expenses = 0;
+  let deductibleExpenses = 0;
+  let taxPaid = 0;
+
+  for (const transaction of transactions) {
+    if (!inYear(transaction.date, year)) {
+      continue;
+    }
+    const amount = Math.abs(transaction.amount);
+    if (transaction.kind === 'income') {
+      income += amount;
+    } else if (isTaxPayment(transaction)) {
+      taxPaid += amount;
+    } else {
+      expenses += amount;
+      if (transaction.deductible) {
+        deductibleExpenses += amount;
+      }
+    }
+  }
+
+  const mileageWriteOff = getMileageWriteOff(trips.filter((trip) => inYear(trip.date, year)));
+  const netProfit = income - expenses;
+  const reserveTarget = Math.max(netProfit, 0) * (reservePercent / 100);
+
+  return {
+    year,
+    income,
+    expenses,
+    deductibleExpenses,
+    mileageWriteOff,
+    netProfit,
+    reserveTarget,
+    taxPaid,
+    stillToSetAside: Math.max(reserveTarget - taxPaid, 0),
+    afterTaxIncome: netProfit - reserveTarget,
+  };
+}

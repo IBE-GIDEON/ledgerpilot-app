@@ -127,6 +127,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="transaction-create" options={{ title: 'New transaction', presentation: modal }} />
         <Stack.Screen name="transaction-detail" options={{ title: 'Transaction' }} />
         <Stack.Screen name="report-packet" options={{ title: 'CPA packet' }} />
+        <Stack.Screen name="breakdown" options={{ title: 'Yours after tax' }} />
         <Stack.Screen name="connections" options={{ title: 'Connected accounts' }} />
         <Stack.Screen name="bank-link" options={{ title: 'Link a bank' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />

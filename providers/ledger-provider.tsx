@@ -49,10 +49,9 @@ import {
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { syncLocalReminders } from '@/lib/notifications/native';
 import {
-  getMileageWriteOff,
   getQuarterEstimates,
   getReserveGap,
-  getTransactionTotals,
+  getYearSummary,
 } from '@/lib/tax';
 import {
   BillingSnapshot,
@@ -139,7 +138,9 @@ interface LedgerContextValue extends LedgerState {
     trialDaysRemaining: number;
     trialEndsAt: string | null;
   };
+  /** All figures are for `year`, the current calendar year. */
   metrics: {
+    year: number;
     income: number;
     expenses: number;
     netProfit: number;
@@ -147,6 +148,10 @@ interface LedgerContextValue extends LedgerState {
     mileageWriteOff: number;
     reserveTarget: number;
     reserveGap: number;
+    /** Payments recorded in the Taxes category. */
+    taxPaid: number;
+    /** The year's set-aside minus tax already paid. */
+    stillToSetAside: number;
     afterTaxIncome: number;
     uncategorizedReceiptValue: number;
   };
@@ -1890,15 +1895,17 @@ export function LedgerProvider({ children }: PropsWithChildren) {
     [hydrateFromSessionUser, state.isAuthenticated, supabase]
   );
 
-  const transactionTotals = getTransactionTotals(state.transactions);
+  // Every money figure is for the current calendar year, which is how taxes are filed.
+  const year = useMemo(
+    () => getYearSummary(state.transactions, state.trips, state.reservePercent),
+    [state.reservePercent, state.transactions, state.trips]
+  );
   const uncategorizedReceiptValue = state.receipts.reduce(
     (total, receipt) => total + (receipt.status === 'Needs review' ? receipt.amount : 0),
     0
   );
-  const mileageWriteOff = getMileageWriteOff(state.trips);
-  const netProfit = transactionTotals.income - transactionTotals.expenses;
-  const deductibleTotal = transactionTotals.deductibleExpenses + mileageWriteOff;
-  const reserveTarget = Math.max(netProfit, 0) * (state.reservePercent / 100);
+  const { mileageWriteOff, netProfit, reserveTarget } = year;
+  const deductibleTotal = year.deductibleExpenses + mileageWriteOff;
   const quarters = useMemo(() => getQuarterEstimates(netProfit, state.reservePercent), [netProfit, state.reservePercent]);
   const nextQuarter = quarters.find((quarter) => quarter.status === 'Next up') ?? quarters[0];
   const reserveGap = getReserveGap(nextQuarter?.amountDue ?? 0, reserveTarget);
@@ -1958,14 +1965,17 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         trialEndsAt: state.billing.trialEndsAt,
       },
       metrics: {
-        income: transactionTotals.income,
-        expenses: transactionTotals.expenses,
+        year: year.year,
+        income: year.income,
+        expenses: year.expenses,
         netProfit,
         deductibleTotal,
         mileageWriteOff,
         reserveTarget,
         reserveGap,
-        afterTaxIncome: netProfit - reserveTarget,
+        taxPaid: year.taxPaid,
+        stillToSetAside: year.stillToSetAside,
+        afterTaxIncome: year.afterTaxIncome,
         uncategorizedReceiptValue,
       },
       auth: {
@@ -2036,8 +2046,7 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       state,
       toggleReceiptVerified,
       toggleTransactionDeductible,
-      transactionTotals.expenses,
-      transactionTotals.income,
+      year,
       trialDaysRemaining,
       uncategorizedReceiptValue,
       updateAvatar,

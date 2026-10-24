@@ -19,6 +19,7 @@ export const expenseCategories = [
   'Car',
   'Rent',
   'Misc',
+  'Taxes',
 ] as const;
 
 export const incomeCategories = ['Income', 'Client payment', 'Freelance', 'Salary'] as const;

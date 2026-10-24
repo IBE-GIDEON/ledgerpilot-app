@@ -1,4 +1,4 @@
-import { getMileageWriteOff } from '@/lib/tax';
+import { getMileageWriteOff, isTaxPayment } from '@/lib/tax';
 import { MileageTrip, QuarterEstimate, Receipt, Transaction } from '@/types/ledger';
 
 const UNCATEGORISED = new Set(['', 'uncategorized', 'uncategorised']);
@@ -28,8 +28,7 @@ export function getQuarterReserve(
 
   const index = quarters.findIndex((item) => item.id === quarter.id);
   const due = new Date(quarter.dueDate);
-  const start =
-    index > 0 ? new Date(quarters[index - 1].dueDate) : new Date(due.getFullYear(), 0, 1);
+  const start = index > 0 ? new Date(quarters[index - 1].dueDate) : new Date(due.getFullYear(), 0, 1);
 
   const profit = transactions.reduce((total, transaction) => {
     const date = new Date(transaction.date);
@@ -64,10 +63,15 @@ export function getReviewCounts(transactions: Transaction[], receipts: Receipt[]
   };
 }
 
-/** Deductible expense totals by category, largest first. */
-export function getDeductionsByCategory(transactions: Transaction[]) {
+/** This year's deductible expense totals by category, largest first. Tax payments are left out. */
+export function getDeductionsByCategory(transactions: Transaction[], year = new Date().getFullYear()) {
   const grouped = transactions.reduce<Record<string, number>>((summary, transaction) => {
-    if (transaction.kind !== 'expense' || !transaction.deductible) {
+    if (
+      new Date(transaction.date).getFullYear() !== year ||
+      isTaxPayment(transaction) ||
+      transaction.kind !== 'expense' ||
+      !transaction.deductible
+    ) {
       return summary;
     }
     const category = transaction.category.trim() || 'Uncategorized';
@@ -80,10 +84,14 @@ export function getDeductionsByCategory(transactions: Transaction[]) {
     .sort((a, b) => b.total - a.total);
 }
 
-/** All expense totals by category, largest first. */
-export function getExpensesByCategory(transactions: Transaction[]) {
+/** This year's expense totals by category, largest first. Tax payments are left out. */
+export function getExpensesByCategory(transactions: Transaction[], year = new Date().getFullYear()) {
   const grouped = transactions.reduce<Record<string, number>>((summary, transaction) => {
-    if (transaction.kind !== 'expense') {
+    if (
+      new Date(transaction.date).getFullYear() !== year ||
+      isTaxPayment(transaction) ||
+      transaction.kind !== 'expense'
+    ) {
       return summary;
     }
     const category = transaction.category.trim() || 'Uncategorized';

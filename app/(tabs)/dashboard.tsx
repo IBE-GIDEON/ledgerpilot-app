@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Amount, Button, Card, List, Row, Screen, Section, SpendBars, Text, Tile, useFeature } from '@/components/ds';
 import { HomeHeader } from '@/components/home/home-header';
-import { SafeToSpendCard } from '@/components/home/safe-to-spend-card';
+import { YoursAfterTaxCard } from '@/components/home/yours-after-tax-card';
 import { getExpensesByCategory, getNextQuarter, getReviewCounts } from '@/components/taxes/tax-summary';
 import { dataColors, space } from '@/constants/theme';
 import { formatCompactCurrency, formatDate } from '@/lib/formatters';
@@ -38,11 +38,16 @@ export default function HomeScreen() {
     <Screen tab>
       <HomeHeader avatarUrl={profile.avatarUrl} hasAlerts={review.total > 0} name={profile.name} />
 
-      <SafeToSpendCard
+      <YoursAfterTaxCard
+        afterTaxIncome={metrics.afterTaxIncome}
+        hasIncome={metrics.income > 0}
         onAdd={() => router.push('/transaction-create')}
+        onPress={() => router.push('/breakdown')}
         reservePercent={reservePercent}
-        safeToSpend={metrics.afterTaxIncome}
-        setAside={metrics.reserveTarget}
+        reserveTarget={metrics.reserveTarget}
+        stillToSetAside={metrics.stillToSetAside}
+        taxPaid={metrics.taxPaid}
+        year={metrics.year}
       />
 
       {transactions.length === 0 ? (
