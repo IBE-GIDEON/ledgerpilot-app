@@ -20,16 +20,16 @@ import {
 import { categoryOptionsFor, parseAmount } from '@/components/money/money-utils';
 import { chooseCaptureSource, pickReceiptImage } from '@/components/money/receipt-capture';
 import { ReceiptComposer, ReceiptRequest } from '@/components/money/receipt-composer';
-import { SwitchRow } from '@/components/ds/switch-row';
 import { space, tabularNums } from '@/constants/theme';
 import { currencySymbol } from '@/lib/currencies';
-import { formatFullDate, getDisplayCurrency } from '@/lib/formatters';
+import { formatDayTime, formatFullDate, getDisplayCurrency } from '@/lib/formatters';
+import { bankOf } from '@/lib/summary';
 import { UpdateTransactionPayload } from '@/lib/backend/payloads';
 import { useLedger } from '@/providers/ledger-provider';
 import { Transaction, TransactionKind } from '@/types/ledger';
 
 const kinds = ['expense', 'income'] as const;
-const kindLabels = { expense: 'Expense', income: 'Income' } as const;
+const kindLabels = { expense: 'Money out', income: 'Money in' } as const;
 
 /** One job: check or fix one transaction. Editing merchant, amount and type sits behind Edit. */
 export default function TransactionDetailScreen() {
@@ -129,7 +129,6 @@ export default function TransactionDetailScreen() {
       category: kindChanged
         ? (categoryOptionsFor(draftKind, transactions)[0] ?? transaction.category)
         : transaction.category,
-      deductible: draftKind === 'expense' ? (kindChanged ? true : transaction.deductible) : false,
     });
     setBusy(false);
     setEditing(false);
@@ -254,15 +253,8 @@ export default function TransactionDetailScreen() {
             title="Category"
             value={transaction.category || 'Uncategorized'}
           />
-          {isExpense ? (
-            <SwitchRow
-              icon="pricetag-outline"
-              onValueChange={() => void actions.toggleTransactionDeductible(transaction.id)}
-              title="Deductible"
-              value={transaction.deductible}
-            />
-          ) : null}
-          <Row icon="card-outline" title="Account" value={transaction.source} />
+          <Row icon="business-outline" title="Bank" value={bankOf(transaction)} />
+          <Row icon="time-outline" title="When" value={formatDayTime(transaction.date)} />
           {transaction.receiptId ? (
             <Row
               chevron={Boolean(receipt)}
@@ -311,7 +303,7 @@ export default function TransactionDetailScreen() {
         multiline
         onBlur={saveNote}
         onChangeText={setNote}
-        placeholder="Business purpose"
+        placeholder="Optional"
         style={styles.note}
         textAlignVertical="top"
         value={note}

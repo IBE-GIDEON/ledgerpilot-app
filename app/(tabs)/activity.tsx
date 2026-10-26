@@ -18,10 +18,7 @@ import {
   EmptyState,
   Field,
   IconButton,
-  List,
   PageHeader,
-  ProGate,
-  Row,
   Screen,
   Segmented,
   Text,
@@ -29,7 +26,6 @@ import {
   useManualInsets,
 } from '@/components/ds';
 import {
-  internalSources,
   TransactionFilter,
   transactionFilters,
   transactionNeedsReview,
@@ -40,7 +36,7 @@ import { ReceiptRow } from '@/components/money/receipt-row';
 import { TransactionRow } from '@/components/money/transaction-row';
 import { photos } from '@/constants/images';
 import { space } from '@/constants/theme';
-import { featureFlags } from '@/lib/config/env';
+import { bankOf, getBankTotals } from '@/lib/summary';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 import { Receipt, Transaction } from '@/types/ledger';
@@ -65,17 +61,18 @@ const byNewest = <T extends { date: string }>(left: T, right: T) =>
 const monthLabel = (date: string) =>
   new Date(date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-/** One job: find a transaction or receipt. Totals live on Home and Tax; details are a row tap away. */
+/** One job: find a transaction or receipt, across every bank or one at a time. Details are a row tap away. */
 export default function MoneyScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ segment?: string }>();
+  const params = useLocalSearchParams<{ segment?: string; bank?: string }>();
   const { theme } = useAppTheme();
   const gutter = useGutter();
   const insets = useManualInsets({ tab: true });
-  const { accounts, actions, receipts, transactions } = useLedger();
+  const { actions, receipts, transactions } = useLedger();
 
   const [segment, setSegment] = useState<Segment>(params.segment === 'receipts' ? 'Receipts' : 'Transactions');
   const [filter, setFilter] = useState<TransactionFilter>('All');
+  const [bank, setBank] = useState<string | null>(params.bank ?? null);
   const [query, setQuery] = useState('');
   const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>('All');
   const [receiptRequest, setReceiptRequest] = useState<ReceiptRequest | null>(null);
@@ -92,11 +89,16 @@ export default function MoneyScreen() {
     }
   }
 
+  // Home's "By bank" rows open this tab on one bank with /activity?bank=Name.
+  const [linkedBank, setLinkedBank] = useState(params.bank);
+  if (params.bank !== linkedBank) {
+    setLinkedBank(params.bank);
+    setBank(params.bank ?? null);
+    setSegment('Transactions');
+  }
+
   const receiptsById = useMemo(() => new Map(receipts.map((receipt) => [receipt.id, receipt])), [receipts]);
-  const hasLinkedAccount = useMemo(
-    () => accounts.some((account) => !internalSources.includes(account)),
-    [accounts],
-  );
+  const banks = useMemo(() => getBankTotals(transactions, 'year').map((entry) => entry.bank), [transactions]);
 
   const sections = useMemo<MonthSection[]>(() => {
     const needle = query.trim().toLowerCase();
@@ -104,18 +106,19 @@ export default function MoneyScreen() {
     const visible = transactions
       .filter((transaction) => {
         switch (filter) {
-          case 'Income':
+          case 'In':
             if (transaction.kind !== 'income') return false;
             break;
-          case 'Expenses':
+          case 'Out':
             if (transaction.kind !== 'expense') return false;
-            break;
-          case 'Deductible':
-            if (!transaction.deductible) return false;
             break;
           case 'Needs review':
             if (!transactionNeedsReview(transaction, receiptsById)) return false;
             break;
+        }
+
+        if (bank && bankOf(transaction) !== bank) {
+          return false;
         }
 
         if (!needle) {
@@ -140,7 +143,7 @@ export default function MoneyScreen() {
       }
     }
     return grouped;
-  }, [filter, query, receiptsById, transactions]);
+  }, [bank, filter, query, receiptsById, transactions]);
 
   const visibleReceipts = useMemo(() => {
     const status = receiptFilterStatus[receiptFilter];
@@ -279,13 +282,18 @@ export default function MoneyScreen() {
         ))}
       </ScrollView>
 
-      {hasLinkedAccount || !featureFlags.bankSync ? null : (
-        <ProGate feature="bankSync">
-          <List>
-            <Row chevron icon="business-outline" onPress={() => router.push('/connections')} title="Connect bank" />
-          </List>
-        </ProGate>
-      )}
+      {banks.length > 1 ? (
+        <ScrollView
+          contentContainerStyle={styles.chips}
+          horizontal
+          keyboardShouldPersistTaps="handled"
+          showsHorizontalScrollIndicator={false}>
+          <Chip label="All banks" onPress={() => setBank(null)} selected={bank === null} />
+          {banks.map((option) => (
+            <Chip key={option} label={option} onPress={() => setBank(option)} selected={bank === option} />
+          ))}
+        </ScrollView>
+      ) : null}
     </View>
   );
 
@@ -293,7 +301,7 @@ export default function MoneyScreen() {
     transactions.length === 0 ? (
       <EmptyState
         action={{ label: 'Add', onPress: () => router.push('/transaction-create') }}
-        body="Add one or connect a bank."
+        body="Add money in or out, and which bank it went through."
         icon="swap-vertical-outline"
         photo={photos.empty}
         title="No transactions"
@@ -304,6 +312,7 @@ export default function MoneyScreen() {
           label: 'Show all',
           onPress: () => {
             setFilter('All');
+            setBank(null);
             setQuery('');
           },
         }}

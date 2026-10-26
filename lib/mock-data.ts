@@ -18,11 +18,15 @@ export const expenseCategories = [
   'Contractors',
   'Car',
   'Rent',
+  'Bills',
+  'Transport',
+  'Food',
+  'Airtime & data',
+  'Transfers out',
   'Misc',
-  'Taxes',
 ] as const;
 
-export const incomeCategories = ['Income', 'Client payment', 'Freelance', 'Salary'] as const;
+export const incomeCategories = ['Income', 'Client payment', 'Freelance', 'Salary', 'Transfers in'] as const;
 
 /** A real account before onboarding fills it in: no made-up name, role or state. */
 export const defaultProfile: UserProfile = {

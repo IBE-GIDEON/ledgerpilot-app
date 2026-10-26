@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 import type { ReminderRoute } from '@/lib/notifications/native';
 
-const routes: readonly ReminderRoute[] = ['/tax', '/activity', '/mileage', '/report-packet'];
+const routes: readonly ReminderRoute[] = ['/activity'];
 
 /**
  * Opens the screen a reminder is about when it's tapped, whether the app was running or not.

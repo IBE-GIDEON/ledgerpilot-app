@@ -2,59 +2,53 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Amount, Button, Card, List, Row, Screen, Section, SpendBars, Text, Tile, useFeature } from '@/components/ds';
+import { Amount, Button, Card, List, Row, Screen, Section, SpendBars, Text, Tile } from '@/components/ds';
 import { HomeHeader } from '@/components/home/home-header';
-import { YoursAfterTaxCard } from '@/components/home/yours-after-tax-card';
-import { getExpensesByCategory, getNextQuarter, getReviewCounts } from '@/components/taxes/tax-summary';
+import { MonthCard } from '@/components/home/month-card';
 import { dataColors, space } from '@/constants/theme';
-import { formatCompactCurrency, formatDate } from '@/lib/formatters';
+import { formatCompactCurrency, formatCurrency, formatDayTime } from '@/lib/formatters';
+import { bankOf, getBankTotals, getCategoryTotals, getReviewCounts, monthLabel } from '@/lib/summary';
 import { useLedger } from '@/providers/ledger-provider';
+import { Transaction } from '@/types/ledger';
 
-/** One job: where do I stand. Everything else is a tap away. */
+function categoryBars(transactions: Transaction[], kind: Transaction['kind']) {
+  return getCategoryTotals(transactions, kind, 'month')
+    .slice(0, 4)
+    .map((entry, index) => ({ key: entry.category, value: entry.total, color: dataColors[index % dataColors.length] }));
+}
+
+/** One job: where my money went this month, and through which bank. Everything else is a tap away. */
 export default function HomeScreen() {
   const router = useRouter();
-  const { metrics, profile, quarters, receipts, reservePercent, transactions, trips } = useLedger();
-  const hasQuarterly = useFeature('quarterlyTax');
+  const { metrics, profile, receipts, transactions } = useLedger();
 
-  const nextQuarter = getNextQuarter(quarters);
-  const review = useMemo(() => getReviewCounts(transactions, receipts, trips), [transactions, receipts, trips]);
-  const spending = useMemo(
-    () =>
-      getExpensesByCategory(transactions)
-        .slice(0, 4)
-        .map((entry, index) => ({
-          key: entry.category,
-          value: entry.total,
-          color: dataColors[index % dataColors.length],
-        })),
-    [transactions]
-  );
+  const review = useMemo(() => getReviewCounts(transactions, receipts), [transactions, receipts]);
+  const spending = useMemo(() => categoryBars(transactions, 'expense'), [transactions]);
+  const earning = useMemo(() => categoryBars(transactions, 'income'), [transactions]);
+  const banks = useMemo(() => getBankTotals(transactions, 'month'), [transactions]);
   const recent = useMemo(
-    () => [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 4),
+    () => [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5),
     [transactions]
   );
+
+  const openBank = (bank: string) => router.push({ pathname: '/activity', params: { bank } });
 
   return (
     <Screen tab>
       <HomeHeader avatarUrl={profile.avatarUrl} hasAlerts={review.total > 0} name={profile.name} />
 
-      <YoursAfterTaxCard
-        afterTaxIncome={metrics.afterTaxIncome}
-        hasIncome={metrics.income > 0}
+      <MonthCard
+        month={monthLabel()}
         onAdd={() => router.push('/transaction-create')}
         onPress={() => router.push('/breakdown')}
-        reservePercent={reservePercent}
-        reserveTarget={metrics.reserveTarget}
-        stillToSetAside={metrics.stillToSetAside}
-        taxPaid={metrics.taxPaid}
-        year={metrics.year}
+        totals={metrics.month}
       />
 
       {transactions.length === 0 ? (
         <Card>
           <Text variant="subheading">Add your first transaction</Text>
           <Text tone="muted" variant="small">
-            Lancer works out your tax from what you add.
+            Note which bank it went through and Lancer keeps each one apart.
           </Text>
           <Button
             fullWidth={false}
@@ -69,25 +63,31 @@ export default function HomeScreen() {
 
       {transactions.length > 0 ? (
         <View style={styles.row}>
-          <Tile
-            caption={formatCompactCurrency(metrics.expenses)}
-            onPress={() => router.push('/activity')}
-            title="Spending">
+          <Tile caption={formatCompactCurrency(metrics.month.income)} onPress={() => router.push('/breakdown')} title="In">
+            <SpendBars segments={earning} />
+          </Tile>
+          <Tile caption={formatCompactCurrency(metrics.month.expenses)} onPress={() => router.push('/breakdown')} title="Out">
             <SpendBars segments={spending} />
           </Tile>
-          <Tile
-            caption={hasQuarterly && nextQuarter ? `Due ${formatDate(nextQuarter.dueDate)}` : 'Quarterly'}
-            onPress={() => router.push('/tax')}
-            title="Taxes">
-            {hasQuarterly && nextQuarter ? (
-              <Amount cents={false} size="heading" value={nextQuarter.amountDue} />
-            ) : (
-              <Text tone="muted" variant="smallMedium">
-                Pro
-              </Text>
-            )}
-          </Tile>
         </View>
+      ) : null}
+
+      {banks.length > 0 ? (
+        <Section title="By bank this month">
+          <List>
+            {banks.map((bank) => (
+              <Row
+                key={bank.bank}
+                chevron
+                icon={bank.bank === 'Cash & other' ? 'wallet-outline' : 'business-outline'}
+                onPress={() => openBank(bank.bank)}
+                subtitle={`In ${formatCurrency(bank.income, 0)} · Out ${formatCurrency(bank.expenses, 0)}`}
+                title={bank.bank}
+                trailing={<Amount signed size="bodyMedium" value={bank.net} />}
+              />
+            ))}
+          </List>
+        </Section>
       ) : null}
 
       {recent.length > 0 ? (
@@ -98,13 +98,8 @@ export default function HomeScreen() {
               return (
                 <Row
                   key={transaction.id}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/transaction-detail',
-                      params: { id: transaction.id },
-                    })
-                  }
-                  subtitle={formatDate(transaction.date)}
+                  onPress={() => router.push({ pathname: '/transaction-detail', params: { id: transaction.id } })}
+                  subtitle={`${bankOf(transaction)} · ${formatDayTime(transaction.date)}`}
                   title={transaction.merchant}
                   trailing={
                     <Amount signed size="bodyMedium" value={transaction.kind === 'income' ? amount : -amount} />

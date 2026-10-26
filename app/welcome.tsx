@@ -16,10 +16,10 @@ import { useLedger } from '@/providers/ledger-provider';
 
 // What the user does in Lancer. Lancer records and estimates; it never holds or moves money.
 const words = [
-  { label: 'Log income', icon: 'arrow-down-circle-outline' },
-  { label: 'Track expenses', icon: 'receipt-outline' },
-  { label: 'Find deductions', icon: 'pricetag-outline' },
-  { label: 'Estimate taxes', icon: 'calculator-outline' },
+  { label: 'Money in', icon: 'arrow-down-circle-outline' },
+  { label: 'Money out', icon: 'arrow-up-circle-outline' },
+  { label: 'Every bank', icon: 'business-outline' },
+  { label: 'One place', icon: 'grid-outline' },
 ] as const;
 
 /**
@@ -95,12 +95,12 @@ export default function WelcomeScreen() {
             <Image accessibilityLabel="Lancer" source={require('@/assets/images/logo.png')} style={styles.markLogo} />
           </View>
           <Text accessibilityRole="header" style={styles.headline}>
-            {returning ? 'Welcome back' : 'Freelance taxes,\nsorted.'}
+            {returning ? 'Welcome back' : 'Every bank,\none view.'}
           </Text>
           <Text style={styles.caption}>
             {returning
               ? 'Pick an account to continue.'
-              : 'Track what you earn and spend, find deductions, and know exactly what to save for tax.'}
+              : 'See what came in and went out of each bank, by category, day and time.'}
           </Text>
         </View>
 

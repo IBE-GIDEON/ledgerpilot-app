@@ -2,9 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { formatCurrency } from '@/lib/formatters';
-import { MileageMode, QuarterEstimate } from '@/types/ledger';
-
 const REMINDER_CHANNEL = 'ledgerpilot-reminders';
 const PREFS_KEY = '@lancer/reminder-prefs';
 const ASKED_KEY = '@lancer/reminders-asked';
@@ -20,20 +17,17 @@ Notifications.setNotificationHandler({
 });
 
 /** The reminder types people can switch on and off. */
-export type ReminderKind = 'quarterlyTax' | 'weeklyCheckIn' | 'mileage' | 'yearEnd';
+export type ReminderKind = 'weeklyCheckIn';
 export type ReminderPrefs = Record<ReminderKind, boolean>;
 
 export const reminderLabels: Record<ReminderKind, { title: string; subtitle: string }> = {
-  quarterlyTax: { title: 'Tax deadlines', subtitle: 'A week before and the day before' },
   weeklyCheckIn: { title: 'Weekly check-in', subtitle: 'Sundays, only if something needs you' },
-  mileage: { title: 'Mileage', subtitle: 'Fridays, if you drive for work' },
-  yearEnd: { title: 'Year-end packet', subtitle: 'Each January' },
 };
 
-const defaultPrefs: ReminderPrefs = { quarterlyTax: true, weeklyCheckIn: true, mileage: true, yearEnd: true };
+const defaultPrefs: ReminderPrefs = { weeklyCheckIn: true };
 
 /** Where a tapped reminder takes people. */
-export type ReminderRoute = '/tax' | '/activity' | '/mileage' | '/report-packet';
+export type ReminderRoute = '/activity';
 
 export type PermissionState = 'granted' | 'undetermined' | 'blocked' | 'unsupported';
 
@@ -121,8 +115,6 @@ function nextWeekday(weekday: number, hour: number) {
   return target;
 }
 
-const money = (value: number) => formatCurrency(value, 0);
-
 async function schedule(title: string, body: string, when: Date, route: ReminderRoute) {
   if (when.getTime() <= Date.now()) {
     return;
@@ -135,12 +127,8 @@ async function schedule(title: string, body: string, when: Date, route: Reminder
 }
 
 export type ReminderInputs = {
-  mileageMode: MileageMode;
-  quarters: QuarterEstimate[];
   transactionsToReview: number;
   receiptsToReview: number;
-  hasRecentTrip: boolean;
-  hasTransactions: boolean;
 };
 
 let lastInputs: ReminderInputs | null = null;
@@ -160,20 +148,6 @@ export async function syncLocalReminders(inputs: ReminderInputs) {
   await Notifications.cancelAllScheduledNotificationsAsync();
   await ensureChannelAsync();
 
-  if (prefs.quarterlyTax) {
-    for (const quarter of inputs.quarters) {
-      if (quarter.status === 'Complete' || quarter.amountDue <= 0) {
-        continue;
-      }
-      const due = new Date(quarter.dueDate);
-      const amount = money(quarter.amountDue);
-      const weekBefore = at(new Date(due.getTime() - 7 * 86400000), 9);
-      const dayBefore = at(new Date(due.getTime() - 86400000), 9);
-      await schedule(`${quarter.label} tax due in a week`, `Estimated ${amount}. Pay it before the deadline.`, weekBefore, '/tax');
-      await schedule(`${quarter.label} tax due tomorrow`, `Estimated ${amount}. Last day to pay without a penalty.`, dayBefore, '/tax');
-    }
-  }
-
   if (prefs.weeklyCheckIn) {
     const parts = [
       inputs.transactionsToReview > 0
@@ -186,21 +160,6 @@ export async function syncLocalReminders(inputs: ReminderInputs) {
     if (parts.length > 0) {
       await schedule('Weekly check-in', `${parts.join(' · ')}.`, nextWeekday(0, 18), '/activity');
     }
-  }
-
-  if (prefs.mileage && inputs.mileageMode !== 'Never' && !inputs.hasRecentTrip) {
-    await schedule('Log this week’s work drives', 'Every business mile lowers your tax bill.', nextWeekday(5, 17), '/mileage');
-  }
-
-  if (prefs.yearEnd && inputs.hasTransactions) {
-    const now = new Date();
-    const january = new Date(now.getFullYear() + 1, 0, 10, 10, 0, 0);
-    await schedule(
-      `Your ${now.getFullYear()} packet is ready`,
-      'Send your accountant one file with income, deductions and mileage.',
-      january,
-      '/report-packet'
-    );
   }
 }
 

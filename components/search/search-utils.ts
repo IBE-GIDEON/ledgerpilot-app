@@ -1,4 +1,4 @@
-import { MileageTrip, Receipt, Transaction } from '@/types/ledger';
+import { Receipt, Transaction } from '@/types/ledger';
 
 /** Lower-cased query, or null when there is nothing worth searching for yet. */
 export function normalizeQuery(raw: string) {
@@ -43,17 +43,6 @@ export function searchReceipts(receipts: Receipt[], query: string) {
   return receipts
     .filter((item) =>
       numeric ? amountMatches(item.amount, numeric) : textMatches(query, [item.vendor, item.category, item.note])
-    )
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-}
-
-export function searchTrips(trips: MileageTrip[], query: string) {
-  const numeric = amountQuery(query);
-  return trips
-    .filter((item) =>
-      numeric
-        ? amountMatches(item.miles, numeric)
-        : textMatches(query, [item.startLabel, item.endLabel, item.purpose, item.classification])
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }

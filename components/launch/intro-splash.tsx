@@ -120,7 +120,7 @@ export function IntroSplash({ ready, onDone }: IntroSplashProps) {
         </Animated.View>
         <Animated.View style={[styles.nameBlock, nameStyle]}>
           <Animated.Text style={styles.name}>Lancer</Animated.Text>
-          <Animated.Text style={styles.tagline}>Money and tax, sorted</Animated.Text>
+          <Animated.Text style={styles.tagline}>Money in, money out</Animated.Text>
         </Animated.View>
       </View>
     </Animated.View>

@@ -3,11 +3,11 @@ import { LegalPage } from '@/components/account/legal-page';
 const sections = [
   {
     title: 'What we collect',
-    body: 'We collect the account information you give us directly, along with the transactions, receipts, mileage entries, and profile settings you choose to store inside Lancer.',
+    body: 'We collect the account information you give us directly, along with the transactions, receipts, bank names and profile settings you choose to store inside Lancer.',
   },
   {
     title: 'How we use it',
-    body: 'We use your data to show your dashboard, organize expenses, estimate tax set-asides, generate reports, and improve support for your account.',
+    body: 'We use your data to show your dashboard, organize money in and out by bank and category, generate exports, and improve support for your account.',
   },
   {
     title: 'Bank connections',

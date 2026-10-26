@@ -13,7 +13,6 @@ import { AppState } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { initStripe } from '@stripe/stripe-react-native';
 import 'react-native-reanimated';
-import '@/lib/mileage/background';
 
 import { IntroSplash } from '@/components/launch/intro-splash';
 import { fonts } from '@/constants/theme';
@@ -128,8 +127,8 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="upgrade" options={{ title: 'Plans', presentation: modal }} />
         <Stack.Screen name="transaction-create" options={{ title: 'New transaction', presentation: modal }} />
         <Stack.Screen name="transaction-detail" options={{ title: 'Transaction' }} />
-        <Stack.Screen name="report-packet" options={{ title: 'CPA packet' }} />
-        <Stack.Screen name="breakdown" options={{ title: 'Yours after tax' }} />
+        <Stack.Screen name="export" options={{ title: 'Export' }} />
+        <Stack.Screen name="breakdown" options={{ title: 'Your year' }} />
         <Stack.Screen name="connections" options={{ title: 'Connected accounts' }} />
         <Stack.Screen name="bank-link" options={{ title: 'Link a bank' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />

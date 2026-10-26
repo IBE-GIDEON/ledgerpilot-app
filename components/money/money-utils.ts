@@ -1,7 +1,7 @@
 import { expenseCategories, incomeCategories } from '@/lib/mock-data';
 import { Receipt, Transaction, TransactionKind } from '@/types/ledger';
 
-export const transactionFilters = ['All', 'Income', 'Expenses', 'Deductible', 'Needs review'] as const;
+export const transactionFilters = ['All', 'In', 'Out', 'Needs review'] as const;
 export type TransactionFilter = (typeof transactionFilters)[number];
 
 /** Sources the ledger creates itself; anything else came from a linked bank, card or processor. */

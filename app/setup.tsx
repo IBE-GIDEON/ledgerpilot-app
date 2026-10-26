@@ -39,6 +39,7 @@ const steps: SetupStep[] = [
       { value: 'Creator', icon: 'videocam-outline' },
       { value: 'Consultant', icon: 'people-outline' },
       { value: 'Gig worker', icon: 'bicycle-outline' },
+      { value: 'Small business', icon: 'storefront-outline' },
     ],
   },
   {
@@ -46,36 +47,6 @@ const steps: SetupStep[] = [
     key: 'currency',
     title: 'Your currency',
     options: [],
-  },
-  {
-    key: 'incomeStyle',
-    title: 'How are you paid?',
-    options: [
-      { value: 'Steady monthly', icon: 'calendar-outline', detail: 'Same each month' },
-      { value: 'Mixed payouts', icon: 'shuffle-outline', detail: 'Uneven client timing' },
-      { value: 'Variable weekly', icon: 'pulse-outline', detail: 'Changes weekly' },
-      { value: 'Gig by gig', icon: 'flash-outline', detail: 'Paid per job' },
-    ],
-  },
-  {
-    key: 'primaryFocus',
-    title: 'Start with?',
-    options: [
-      { value: 'Expenses & receipts', icon: 'receipt-outline' },
-      { value: 'Mileage tracking', icon: 'car-outline' },
-      { value: 'Quarterly tax', icon: 'calculator-outline' },
-      { value: 'Everything in one place', icon: 'grid-outline' },
-    ],
-  },
-  {
-    key: 'mileageMode',
-    title: 'Drive for work?',
-    options: [
-      { value: 'Often', icon: 'speedometer-outline', detail: 'Most working days' },
-      { value: 'Sometimes', icon: 'car-outline', detail: 'A few times monthly' },
-      { value: 'Rarely', icon: 'time-outline', detail: 'Now and then' },
-      { value: 'Never', icon: 'close-circle-outline', detail: 'No mileage reminders' },
-    ],
   },
 ];
 

@@ -45,14 +45,6 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Icon md="receipt_long" sf={{ default: 'list.bullet.rectangle', selected: 'list.bullet.rectangle.fill' }} />
         <NativeTabs.Trigger.Label>Money</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="mileage">
-        <NativeTabs.Trigger.Icon md="directions_car" sf={{ default: 'car', selected: 'car.fill' }} />
-        <NativeTabs.Trigger.Label>Mileage</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="tax">
-        <NativeTabs.Trigger.Icon md="account_balance" sf={{ default: 'building.columns', selected: 'building.columns.fill' }} />
-        <NativeTabs.Trigger.Label>Taxes</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="more">
         <NativeTabs.Trigger.Icon md="account_circle" sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }} />
         <NativeTabs.Trigger.Label>Account</NativeTabs.Trigger.Label>

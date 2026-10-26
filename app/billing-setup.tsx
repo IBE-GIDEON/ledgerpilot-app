@@ -3,23 +3,20 @@ import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
-import { Button, Card, Screen, Segmented, Text } from '@/components/ds';
-import { plans } from '@/lib/billing/features';
+import { Button, Card, Screen, Text } from '@/components/ds';
+import { LANCER_PLAN, plans } from '@/lib/billing/features';
 import { env } from '@/lib/config/env';
 import { finalizeStripeSetupSession, prepareStripeSetupSession } from '@/lib/supabase/billing';
 import { useLedger } from '@/providers/ledger-provider';
-import { PlanTier } from '@/types/ledger';
 
-const tiers = plans.map((plan) => plan.tier);
-
-/** One job: save a card for the chosen plan. Nothing is charged today. */
+/** One job: save a card for the Lancer plan. Nothing is charged today. */
 export default function BillingSetupScreen() {
   const router = useRouter();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { access, actions, activePlan, isAuthenticated, isHydratingAuth, profile } = useLedger();
+  const { access, actions, isAuthenticated, isHydratingAuth, profile } = useLedger();
   const stripeReady = Boolean(env.stripePublishableKey);
 
-  const [selectedPlan, setSelectedPlan] = useState<PlanTier>(activePlan);
+  const selectedPlan = LANCER_PLAN;
   const [savingCard, setSavingCard] = useState(false);
 
   if (isHydratingAuth) {
@@ -30,7 +27,7 @@ export default function BillingSetupScreen() {
     return <Redirect href="/welcome" />;
   }
 
-  const plan = plans.find((item) => item.tier === selectedPlan) ?? plans[0];
+  const plan = plans[0];
   const cardSaved = access.paymentMethodStatus === 'ready';
 
   const handleSaveCard = async () => {
@@ -86,8 +83,8 @@ export default function BillingSetupScreen() {
       Alert.alert(
         'Card saved',
         finalized.last4
-          ? `${finalized.brand ?? 'Card'} ending in ${finalized.last4} is saved for your ${selectedPlan} plan.`
-          : `Your card is saved for your ${selectedPlan} plan.`
+          ? `${finalized.brand ?? 'Card'} ending in ${finalized.last4} is saved for your Lancer plan.`
+          : 'Your card is saved for your Lancer plan.'
       );
     } catch (error) {
       Alert.alert(
@@ -121,8 +118,6 @@ export default function BillingSetupScreen() {
           No charge today
         </Text>
       </Card>
-
-      <Segmented onChange={setSelectedPlan} options={tiers} value={selectedPlan} />
 
       <Text align="center" tone="faint" variant="caption">
         Secured by Stripe. We remind you before any charge.

@@ -64,3 +64,11 @@ export function formatFullDate(value: string): string {
     year: 'numeric',
   }).format(new Date(value));
 }
+
+/** "Mon, Oct 26 · 2:41 PM", for when exactly money moved. */
+export function formatDayTime(value: string): string {
+  const date = new Date(value);
+  const day = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
+  const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date);
+  return `${day} · ${time}`;
+}

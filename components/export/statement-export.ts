@@ -2,27 +2,15 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 
-import { getDeductionsByCategory, getExpensesByCategory, getMileageSummary } from '@/components/taxes/tax-summary';
 import { formatCurrency, formatFullDate } from '@/lib/formatters';
-import { isTaxPayment } from '@/lib/tax';
-import { MileageTrip, Receipt, Transaction, UserProfile } from '@/types/ledger';
+import { bankOf, getBankTotals, getCategoryTotals, getTotals } from '@/lib/summary';
+import { Receipt, Transaction, UserProfile } from '@/types/ledger';
 
-export type PacketInput = {
+export type StatementInput = {
   year: number;
   profile: UserProfile;
   transactions: Transaction[];
   receipts: Receipt[];
-  trips: MileageTrip[];
-  reservePercent: number;
-  metrics: {
-    income: number;
-    expenses: number;
-    netProfit: number;
-    deductibleTotal: number;
-    mileageWriteOff: number;
-    reserveTarget: number;
-    taxPaid: number;
-  };
 };
 
 const inYear = (date: string, year: number) => new Date(date).getFullYear() === year;
@@ -49,17 +37,16 @@ function table(headers: string[], rows: (string | number)[][], numericFrom = hea
   return `<table><thead><tr>${head.join('')}</tr></thead><tbody>${body.join('') || `<tr><td colspan="${headers.length}" class="muted">None recorded</td></tr>`}</tbody></table>`;
 }
 
-/** A printable, accountant-friendly summary of the year as HTML (rendered to PDF). */
-export function buildPacketHtml(input: PacketInput) {
-  const { year, profile, metrics, reservePercent } = input;
+/** A printable statement of the year's money in and money out, as HTML (rendered to PDF). */
+export function buildStatementHtml(input: StatementInput) {
+  const { year, profile } = input;
+  const now = new Date(year, 11, 31);
   const transactions = input.transactions.filter((item) => inYear(item.date, year)).sort(byDate);
-  const trips = input.trips.filter((item) => inYear(item.date, year)).sort(byDate);
-  const receipts = input.receipts.filter((item) => inYear(item.date, year));
-  const expenses = getExpensesByCategory(input.transactions, year);
-  const deductions = getDeductionsByCategory(input.transactions, year);
-  const mileage = getMileageSummary(trips);
-  const verified = receipts.filter((item) => item.status === 'Verified').length;
-  const preparedFor = [profile.name, profile.role, profile.homeState].filter((part) => part?.trim()).join(' · ');
+  const totals = getTotals(input.transactions, 'year', now);
+  const moneyIn = getCategoryTotals(input.transactions, 'income', 'year', now);
+  const moneyOut = getCategoryTotals(input.transactions, 'expense', 'year', now);
+  const receipts = input.receipts.filter((item) => inYear(item.date, year)).length;
+  const preparedFor = [profile.name, profile.role].filter((part) => part?.trim()).join(' · ');
 
   return `<!doctype html><html><head><meta charset="utf-8" />
 <style>
@@ -73,71 +60,64 @@ export function buildPacketHtml(input: PacketInput) {
   .num { text-align: right; font-variant-numeric: tabular-nums; }
   .summary td:first-child { width: 60%; }
   .total td { font-weight: 600; border-top: 1px solid #999; }
-  footer { margin-top: 32px; font-size: 10px; color: #777; }
 </style></head><body>
-  <h1>Lancer ${year} tax packet</h1>
+  <h1>Lancer ${year} statement</h1>
   <div class="muted">${escapeHtml(preparedFor || 'Prepared from Lancer records')} · Generated ${escapeHtml(formatFullDate(new Date().toISOString()))}</div>
 
   <h2>Summary</h2>
   <table class="summary"><tbody>
-    <tr><td>Gross income</td><td class="num">${money(metrics.income)}</td></tr>
-    <tr><td>Business expenses</td><td class="num">${money(metrics.expenses)}</td></tr>
-    <tr class="total"><td>Net profit</td><td class="num">${money(metrics.netProfit)}</td></tr>
-    <tr><td>Deductible expenses</td><td class="num">${money(metrics.deductibleTotal - metrics.mileageWriteOff)}</td></tr>
-    <tr><td>Mileage write-off (${mileage.businessMiles.toFixed(1)} business miles)</td><td class="num">${money(metrics.mileageWriteOff)}</td></tr>
-    <tr><td>Estimated tax set aside (${reservePercent}% of profit)</td><td class="num">${money(metrics.reserveTarget)}</td></tr>
-    <tr><td>Tax payments recorded</td><td class="num">${money(metrics.taxPaid)}</td></tr>
+    <tr><td>Money in</td><td class="num">${money(totals.income)}</td></tr>
+    <tr><td>Money out</td><td class="num">${money(totals.expenses)}</td></tr>
+    <tr class="total"><td>Left over</td><td class="num">${money(totals.net)}</td></tr>
   </tbody></table>
 
-  <h2>Expenses by category</h2>
-  ${table(['Category', 'Total'], expenses.map((item) => [item.category, money(item.total)]), 1)}
-
-  <h2>Deductible expenses by category</h2>
-  ${table(['Category', 'Total'], deductions.map((item) => [item.category, money(item.total)]), 1)}
-
-  <h2>Mileage log</h2>
+  <h2>By bank</h2>
   ${table(
-    ['Date', 'From', 'To', 'Purpose', 'Type', 'Miles'],
-    trips.map((trip) => [day(trip.date), trip.startLabel, trip.endLabel, trip.purpose || '', trip.classification, trip.miles.toFixed(1)]),
-    5
+    ['Bank', 'In', 'Out', 'Left over'],
+    getBankTotals(input.transactions, 'year', now).map((item) => [item.bank, money(item.income), money(item.expenses), money(item.net)]),
+    1
   )}
+
+  <h2>Money in by category</h2>
+  ${table(['Category', 'Total'], moneyIn.map((item) => [item.category, money(item.total)]), 1)}
+
+  <h2>Money out by category</h2>
+  ${table(['Category', 'Total'], moneyOut.map((item) => [item.category, money(item.total)]), 1)}
 
   <h2>Transactions</h2>
   ${table(
-    ['Date', 'Merchant', 'Category', 'Type', 'Deductible', 'Amount'],
+    ['When', 'Merchant', 'Category', 'Bank', 'Type', 'Amount'],
     transactions.map((item) => [
-      day(item.date),
+      item.date.slice(0, 16).replace('T', ' '),
       item.merchant,
       item.category || 'Uncategorized',
-      isTaxPayment(item) ? 'Tax payment' : item.kind === 'income' ? 'Income' : 'Expense',
-      item.kind === 'expense' && !isTaxPayment(item) ? (item.deductible ? 'Yes' : 'No') : '',
+      bankOf(item),
+      item.kind === 'income' ? 'In' : 'Out',
       money(Math.abs(item.amount)),
     ]),
     5
   )}
 
   <h2>Receipts</h2>
-  <div>${receipts.length} receipts stored for ${year}: ${verified} verified, ${receipts.length - verified} awaiting review.</div>
-
-  <footer>Figures come from records kept in Lancer and are estimates, not tax advice.</footer>
+  <div>${receipts} receipts stored for ${year}.</div>
 </body></html>`;
 }
 
 /** Every transaction for the year, one row each, for Excel, Numbers or Google Sheets. */
-export function buildTransactionsCsv(input: Pick<PacketInput, 'year' | 'transactions'>) {
-  const header = ['date', 'type', 'merchant', 'category', 'amount', 'deductible', 'account', 'note'];
+export function buildTransactionsCsv(input: Pick<StatementInput, 'year' | 'transactions'>) {
+  const header = ['date', 'time', 'type', 'merchant', 'category', 'amount', 'bank', 'note'];
   const rows = input.transactions
     .filter((item) => inYear(item.date, input.year))
     .sort(byDate)
     .map((item) =>
       [
         day(item.date),
-        isTaxPayment(item) ? 'tax payment' : item.kind,
+        new Date(item.date).toTimeString().slice(0, 5),
+        item.kind === 'income' ? 'in' : 'out',
         item.merchant,
         item.category || 'Uncategorized',
         (item.kind === 'income' ? 1 : -1) * Math.abs(item.amount),
-        item.kind === 'expense' && !isTaxPayment(item) ? (item.deductible ? 'yes' : 'no') : '',
-        item.source,
+        bankOf(item),
         item.note,
       ]
         .map((cell) => csvCell(typeof cell === 'number' ? cell.toFixed(2) : cell))
@@ -155,18 +135,18 @@ async function freshFile(name: string) {
   return file;
 }
 
-export async function sharePacketPdf(input: PacketInput) {
-  const { uri } = await Print.printToFileAsync({ html: buildPacketHtml(input) });
-  const named = await freshFile(`Lancer-${input.year}-tax-packet.pdf`);
+export async function shareStatementPdf(input: StatementInput) {
+  const { uri } = await Print.printToFileAsync({ html: buildStatementHtml(input) });
+  const named = await freshFile(`Lancer-${input.year}-statement.pdf`);
   await new File(uri).move(named);
   await Sharing.shareAsync(named.uri, {
-    dialogTitle: `Lancer ${input.year} tax packet`,
+    dialogTitle: `Lancer ${input.year} statement`,
     mimeType: 'application/pdf',
     UTI: 'com.adobe.pdf',
   });
 }
 
-export async function shareTransactionsCsv(input: Pick<PacketInput, 'year' | 'transactions'>) {
+export async function shareTransactionsCsv(input: Pick<StatementInput, 'year' | 'transactions'>) {
   const file = await freshFile(`Lancer-${input.year}-transactions.csv`);
   file.create();
   await file.write(buildTransactionsCsv(input));

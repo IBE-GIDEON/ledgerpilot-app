@@ -1,69 +1,82 @@
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 
-import { Amount, Card, List, Row, Screen, Section, Text } from '@/components/ds';
+import { Amount, Card, EmptyState, List, Row, Screen, Section, Text } from '@/components/ds';
+import { formatCurrency } from '@/lib/formatters';
+import { getBankTotals, getCategoryTotals } from '@/lib/summary';
 import { useLedger } from '@/providers/ledger-provider';
 
-/** One job: show how "Yours after tax" is worked out, line by line, for this year. */
+/** One job: where this year's money came from and went, by category and by bank. */
 export default function BreakdownScreen() {
   const router = useRouter();
-  const { metrics, reservePercent } = useLedger();
+  const { metrics, transactions } = useLedger();
+
+  const moneyIn = useMemo(() => getCategoryTotals(transactions, 'income'), [transactions]);
+  const moneyOut = useMemo(() => getCategoryTotals(transactions, 'expense'), [transactions]);
+  const banks = useMemo(() => getBankTotals(transactions, 'year'), [transactions]);
+  const totals = metrics.thisYear;
+
+  if (totals.income === 0 && totals.expenses === 0) {
+    return (
+      <Screen header>
+        <EmptyState
+          action={{ label: 'Add', onPress: () => router.push('/transaction-create') }}
+          body="Add money in or out to see your year."
+          icon="pie-chart-outline"
+          title="Nothing yet"
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen header>
-      <Section title={`${metrics.year} so far`}>
-        <List>
-          <Row
-            chevron
-            icon="arrow-down-circle-outline"
-            onPress={() => router.push('/activity')}
-            title="Income"
-            trailing={<Amount size="bodyMedium" value={metrics.income} />}
-          />
-          <Row
-            chevron
-            icon="arrow-up-circle-outline"
-            onPress={() => router.push('/activity')}
-            subtitle="Business costs, not tax payments"
-            title="Expenses"
-            trailing={<Amount size="bodyMedium" value={-metrics.expenses} />}
-          />
-          <Row title="Profit" trailing={<Amount size="bodyMedium" value={metrics.netProfit} />} />
-        </List>
-      </Section>
-
-      <Section title="Tax">
-        <List>
-          <Row
-            chevron
-            icon="calculator-outline"
-            onPress={() => router.push('/tax')}
-            subtitle="Change the rate in Taxes"
-            title={`Set aside at ${reservePercent}%`}
-            trailing={<Amount size="bodyMedium" value={metrics.reserveTarget} />}
-          />
-          <Row
-            icon="checkmark-circle-outline"
-            subtitle="Expenses in the Taxes category"
-            title="Already paid"
-            trailing={<Amount size="bodyMedium" value={-metrics.taxPaid} />}
-          />
-          <Row title="Still to set aside" trailing={<Amount size="bodyMedium" value={metrics.stillToSetAside} />} />
-        </List>
-      </Section>
-
       <Card tone="primary">
         <Text tone="inverseMuted" variant="smallMedium">
-          Yours after tax
+          {`Left over · ${metrics.year}`}
         </Text>
-        <Amount cents size="display" tone="inverse" value={metrics.afterTaxIncome} />
+        <Amount cents size="display" tone="inverse" value={totals.net} />
         <Text tone="inverseMuted" variant="small">
-          Profit minus the tax set-aside.
+          {`In ${formatCurrency(totals.income, 0)} · Out ${formatCurrency(totals.expenses, 0)}`}
         </Text>
       </Card>
 
-      <Text align="center" tone="faint" variant="caption">
-        Estimates, not tax advice.
-      </Text>
+      <Section title="By bank">
+        <List>
+          {banks.map((bank) => (
+            <Row
+              key={bank.bank}
+              chevron
+              onPress={() => router.push({ pathname: '/activity', params: { bank: bank.bank } })}
+              subtitle={`In ${formatCurrency(bank.income, 0)} · Out ${formatCurrency(bank.expenses, 0)}`}
+              title={bank.bank}
+              trailing={<Amount signed size="bodyMedium" value={bank.net} />}
+            />
+          ))}
+        </List>
+      </Section>
+
+      {moneyIn.length > 0 ? (
+        <Section title="Money in">
+          <List>
+            {moneyIn.map((item) => (
+              <Row key={item.category} title={item.category} trailing={<Amount size="bodyMedium" value={item.total} />} />
+            ))}
+          </List>
+        </Section>
+      ) : null}
+
+      {moneyOut.length > 0 ? (
+        <Section title="Money out">
+          <List>
+            {moneyOut.map((item) => (
+              <Row key={item.category} title={item.category} trailing={<Amount size="bodyMedium" value={item.total} />} />
+            ))}
+          </List>
+        </Section>
+      ) : null}
+
+      <Row chevron icon="share-outline" onPress={() => router.push('/export')} title="Export the year" />
     </Screen>
   );
 }

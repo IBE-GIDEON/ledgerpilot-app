@@ -46,10 +46,10 @@ export default function RemindersIntroScreen() {
           <Ionicons color={theme.text} name="notifications-outline" size={34} />
         </View>
         <Text accessibilityRole="header" align="center" variant="title">
-          Never miss a tax deadline
+          A nudge when it matters
         </Text>
         <Text align="center" tone="muted">
-          We’ll remind you a week before each quarterly payment, and on Sundays if something needs a look.
+          On Sundays, only if a transaction or receipt needs a look. Nothing else.
         </Text>
       </View>
 

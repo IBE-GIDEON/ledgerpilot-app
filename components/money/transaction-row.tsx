@@ -5,7 +5,8 @@ import { Amount, Text } from '@/components/ds';
 import { ListCell } from '@/components/money/list-cell';
 import { categoryColorIndex } from '@/components/money/money-utils';
 import { dataColors, space } from '@/constants/theme';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import { formatCurrency, formatDayTime } from '@/lib/formatters';
+import { bankOf } from '@/lib/summary';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { Transaction } from '@/types/ledger';
 
@@ -17,7 +18,7 @@ type TransactionRowProps = {
   onPress: (id: string) => void;
 };
 
-/** Merchant with a category dot, the date beneath, and the signed amount on the right. */
+/** Merchant with a category dot; category, bank, day and time beneath; the signed amount on the right. */
 export const TransactionRow = memo(function TransactionRow({
   transaction,
   first,
@@ -26,7 +27,8 @@ export const TransactionRow = memo(function TransactionRow({
   onPress,
 }: TransactionRowProps) {
   const { theme } = useAppTheme();
-  const date = formatDate(transaction.date);
+  const date = formatDayTime(transaction.date);
+  const bank = bankOf(transaction);
   const category = transaction.category || 'Uncategorized';
   const direction = transaction.kind === 'income' ? 'received' : 'spent';
   const dotColor = dataColors[categoryColorIndex(transaction.category) % dataColors.length];
@@ -34,9 +36,7 @@ export const TransactionRow = memo(function TransactionRow({
   return (
     <ListCell first={first} last={last}>
       <Pressable
-        accessibilityLabel={`${transaction.merchant}, ${formatCurrency(Math.abs(transaction.amount), 2)} ${direction}, ${category}, ${date}, ${transaction.source}${
-          transaction.deductible ? ', deductible' : ''
-        }${needsReview ? ', needs review' : ''}`}
+        accessibilityLabel={`${transaction.merchant}, ${formatCurrency(Math.abs(transaction.amount), 2)} ${direction}, ${category}, ${date}, ${bank}${needsReview ? ', needs review' : ''}`}
         accessibilityRole="button"
         android_ripple={{ color: theme.surfaceMuted }}
         onPress={() => onPress(transaction.id)}
@@ -47,6 +47,9 @@ export const TransactionRow = memo(function TransactionRow({
             {transaction.merchant}
           </Text>
           <Text numberOfLines={1} tone={needsReview ? 'accent' : 'muted'} variant="small">
+            {`${category} · ${bank}`}
+          </Text>
+          <Text numberOfLines={1} tone="faint" variant="caption">
             {date}
           </Text>
         </View>

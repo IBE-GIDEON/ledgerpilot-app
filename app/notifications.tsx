@@ -4,7 +4,7 @@ import { ComponentProps, useCallback, useEffect, useMemo, useState } from 'react
 import { Alert, Linking } from 'react-native';
 
 import { Badge, Button, EmptyState, List, Row, Screen, Section, SwitchRow } from '@/components/ds';
-import { formatCurrency, formatFullDate } from '@/lib/formatters';
+import { getReviewCounts } from '@/lib/summary';
 import {
   loadReminderPrefs,
   PermissionState,
@@ -22,21 +22,18 @@ type Upcoming = {
   title: string;
   subtitle: string;
   icon: ComponentProps<typeof Ionicons>['name'];
-  route: '/tax' | '/activity' | '/mileage';
+  route: '/activity';
 };
 
-const kinds: ReminderKind[] = ['quarterlyTax', 'weeklyCheckIn', 'mileage', 'yearEnd'];
+const kinds: ReminderKind[] = ['weeklyCheckIn'];
 const kindIcons: Record<ReminderKind, ComponentProps<typeof Ionicons>['name']> = {
-  quarterlyTax: 'calendar-outline',
   weeklyCheckIn: 'checkmark-circle-outline',
-  mileage: 'car-outline',
-  yearEnd: 'briefcase-outline',
 };
 
 /** One job: control which reminders Lancer sends, and see what's coming up. */
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { profile, quarters, receipts, transactions } = useLedger();
+  const { receipts, transactions } = useLedger();
   const [permission, setPermission] = useState<PermissionState | null>(null);
   const [prefs, setPrefs] = useState<ReminderPrefs | null>(null);
   const [requesting, setRequesting] = useState(false);
@@ -90,21 +87,7 @@ export default function NotificationsScreen() {
   const upcoming = useMemo<Upcoming[]>(() => {
     const list: Upcoming[] = [];
 
-    const nextQuarter = quarters.find((quarter) => quarter.status !== 'Complete');
-    if (nextQuarter && nextQuarter.amountDue > 0) {
-      list.push({
-        id: 'tax',
-        title: `${nextQuarter.label} tax`,
-        subtitle: `${formatCurrency(nextQuarter.amountDue, 0)} · ${formatFullDate(nextQuarter.dueDate)}`,
-        icon: 'calendar-outline',
-        route: '/tax',
-      });
-    }
-
-    const uncategorized = transactions.filter(
-      (item) => !item.category?.trim() || item.category === 'Uncategorized'
-    ).length;
-    const receiptsToReview = receipts.filter((item) => item.status === 'Needs review').length;
+    const { transactionsToReview: uncategorized, receiptsToReview } = getReviewCounts(transactions, receipts);
     if (uncategorized + receiptsToReview > 0) {
       list.push({
         id: 'review',
@@ -121,7 +104,7 @@ export default function NotificationsScreen() {
     }
 
     return list;
-  }, [quarters, receipts, transactions]);
+  }, [receipts, transactions]);
 
   const granted = permission === 'granted';
 
@@ -161,25 +144,23 @@ export default function NotificationsScreen() {
       {prefs ? (
         <Section footnote={granted ? undefined : 'Your choices apply once notifications are on.'} title="Remind me about">
           <List>
-            {kinds
-              .filter((kind) => kind !== 'mileage' || profile.mileageMode !== 'Never')
-              .map((kind) => (
-                <SwitchRow
-                  key={kind}
-                  icon={kindIcons[kind]}
-                  onValueChange={(value) => toggle(kind, value)}
-                  subtitle={reminderLabels[kind].subtitle}
-                  title={reminderLabels[kind].title}
-                  value={prefs[kind]}
-                />
-              ))}
+            {kinds.map((kind) => (
+              <SwitchRow
+                key={kind}
+                icon={kindIcons[kind]}
+                onValueChange={(value) => toggle(kind, value)}
+                subtitle={reminderLabels[kind].subtitle}
+                title={reminderLabels[kind].title}
+                value={prefs[kind]}
+              />
+            ))}
           </List>
         </Section>
       ) : null}
 
       <Section title="Coming up">
         {upcoming.length === 0 ? (
-          <EmptyState body="Deadlines and to-dos show up here." icon="checkmark-done-outline" title="All clear" />
+          <EmptyState body="Things that need a look show up here." icon="checkmark-done-outline" title="All clear" />
         ) : (
           <List>
             {upcoming.map((item) => (

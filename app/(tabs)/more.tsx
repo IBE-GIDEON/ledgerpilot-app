@@ -21,7 +21,7 @@ const paymentLabels = {
 export default function AccountScreen() {
   const router = useRouter();
   const { theme } = useAppTheme();
-  const { access, activePlan, auth, authBusy, profile, usingLiveBackend } = useLedger();
+  const { access, auth, authBusy, profile, usingLiveBackend } = useLedger();
   const [signingOut, setSigningOut] = useState(false);
 
   const version = Constants.expoConfig?.version ?? '1.0';
@@ -33,7 +33,7 @@ export default function AccountScreen() {
       : access.subscriptionStatus === 'expired'
         ? 'Trial ended'
         : null;
-  const planValue = planStatus ? `${activePlan} · ${planStatus}` : activePlan;
+  const planValue = planStatus ? `Lancer · ${planStatus}` : 'Lancer';
 
   const signOut = async () => {
     setSigningOut(true);
@@ -94,6 +94,7 @@ export default function AccountScreen() {
           <Row chevron icon="link-outline" onPress={() => router.push('/connections')} title="Connected accounts" />
         ) : null}
         <Row chevron icon="notifications-outline" onPress={() => router.push('/notifications')} title="Notifications" />
+        <Row chevron icon="share-outline" onPress={() => router.push('/export')} title="Export" />
       </List>
 
       <List>

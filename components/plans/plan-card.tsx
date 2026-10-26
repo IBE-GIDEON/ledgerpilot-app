@@ -4,12 +4,11 @@ import { StyleSheet, View } from 'react-native';
 import { Badge, Button, Card, Text } from '@/components/ds';
 import { space, tabularNums } from '@/constants/theme';
 import { useAppTheme } from '@/providers/app-theme-provider';
-import { PlanTier } from '@/types/ledger';
 
-const MAX_FEATURES = 4;
+const MAX_FEATURES = 5;
 
 type PlanCardProps = {
-  tier: PlanTier;
+  name: string;
   price: string;
   period: string;
   /** Kept for callers; the card no longer prints it. */
@@ -26,7 +25,7 @@ type PlanCardProps = {
 };
 
 export function PlanCard({
-  tier,
+  name,
   price,
   period,
   features,
@@ -45,7 +44,7 @@ export function PlanCard({
     <Card tone={hero ? 'primary' : 'surface'}>
       <View style={styles.top}>
         <Text numberOfLines={1} style={styles.flex} tone={hero ? 'inverse' : 'default'} variant="heading">
-          {tier}
+          {name}
         </Text>
         {isCurrent ? <Badge label="Current" tone="positive" /> : recommended ? <Badge label="Popular" /> : null}
       </View>

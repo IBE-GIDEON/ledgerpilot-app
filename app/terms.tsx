@@ -3,11 +3,11 @@ import { LegalPage } from '@/components/account/legal-page';
 const sections = [
   {
     title: 'What Lancer is',
-    body: 'Lancer helps solo professionals organize money activity, track receipts and mileage, estimate tax set-asides, and prepare exports for filing support.',
+    body: 'Lancer helps solo professionals see money coming in and going out across their banks, keep receipts, and export statements.',
   },
   {
     title: 'What Lancer is not',
-    body: 'Lancer does not replace your accountant, lawyer, or tax adviser. Estimates and recommendations are organizational tools unless you are working with a licensed expert separately.',
+    body: 'Lancer is a record-keeping tool. It does not hold or move money and does not give financial, legal or tax advice.',
   },
   {
     title: 'Account responsibilities',

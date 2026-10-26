@@ -10,7 +10,6 @@ import {
   normalizeQuery,
   searchReceipts,
   searchTransactions,
-  searchTrips,
   topCategories,
   yearTotals,
 } from '@/components/search/search-utils';
@@ -28,7 +27,7 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const gutter = useGutter();
   const { theme } = useAppTheme();
-  const { receipts, transactions, trips } = useLedger();
+  const { receipts, transactions } = useLedger();
   const [raw, setRaw] = useState('');
 
   const query = normalizeQuery(raw);
@@ -40,10 +39,9 @@ export default function SearchScreen() {
     return {
       transactions: matchedTransactions,
       receipts: searchReceipts(receipts, query),
-      trips: searchTrips(trips, query),
       totals: yearTotals(matchedTransactions),
     };
-  }, [query, receipts, transactions, trips]);
+  }, [query, receipts, transactions]);
   const suggestions = useMemo(() => topCategories(transactions), [transactions]);
 
   const openReceipt = (receiptId: string) => {
@@ -55,7 +53,7 @@ export default function SearchScreen() {
     router.push({ pathname: '/activity', params: { segment: 'receipts' } });
   };
 
-  const total = results ? results.transactions.length + results.receipts.length + results.trips.length : 0;
+  const total = results ? results.transactions.length + results.receipts.length : 0;
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top + space.sm }]}>
@@ -111,7 +109,7 @@ export default function SearchScreen() {
             </Section>
           ) : (
             <EmptyState
-              body="Transactions, receipts and trips all show up here."
+              body="Transactions and receipts, from every bank, show up here."
               icon="search-outline"
               title="Search everything"
             />
@@ -187,22 +185,6 @@ export default function SearchScreen() {
               </Section>
             ) : null}
 
-            {results.trips.length > 0 ? (
-              <Section footnote={overflow(results.trips.length)} title={`Trips · ${results.trips.length}`}>
-                <List>
-                  {results.trips.slice(0, GROUP_LIMIT).map((item) => (
-                    <Row
-                      key={item.id}
-                      icon="car-outline"
-                      onPress={() => router.push('/mileage')}
-                      subtitle={item.purpose ? `${item.purpose} · ${formatDate(item.date)}` : formatDate(item.date)}
-                      title={`${item.startLabel} → ${item.endLabel}`}
-                      value={`${item.miles} mi`}
-                    />
-                  ))}
-                </List>
-              </Section>
-            ) : null}
           </>
         )}
       </KeyboardAwareScrollView>

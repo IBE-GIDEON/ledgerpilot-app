@@ -2,16 +2,12 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
-import { List, Photo, Row, Screen, Segmented, Text } from '@/components/ds';
+import { List, Photo, Row, Screen, Text } from '@/components/ds';
 import { PlanCard } from '@/components/plans/plan-card';
 import { photos } from '@/constants/images';
 import { space } from '@/constants/theme';
 import { plans } from '@/lib/billing/features';
-import {
-  BillingCadence,
-  getCatalogPackageForCadence,
-  RevenueCatPlanCatalogItem,
-} from '@/lib/billing/plans';
+import { getCatalogPackageForCadence, RevenueCatPlanCatalogItem } from '@/lib/billing/plans';
 import {
   buildRevenueCatSyncFromCustomerInfo,
   isRevenueCatAvailable,
@@ -23,14 +19,10 @@ import { persistBillingProfile } from '@/lib/supabase/billing';
 import { useLedger } from '@/providers/ledger-provider';
 import { PlanTier } from '@/types/ledger';
 
-const cadences = ['monthly', 'annual'] as const satisfies readonly BillingCadence[];
-const cadenceLabels: Record<BillingCadence, string> = { monthly: 'Monthly', annual: 'Annual' };
-
-/** One job: pick a plan (monthly or annual) and buy it. */
+/** One job: subscribe to Lancer's one plan, monthly. */
 export default function UpgradeScreen() {
   const router = useRouter();
   const { access, actions, activePlan, profile } = useLedger();
-  const [billingCadence, setBillingCadence] = useState<BillingCadence>('annual');
   const [catalog, setCatalog] = useState<RevenueCatPlanCatalogItem[]>([]);
   const [pendingPlan, setPendingPlan] = useState<PlanTier | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -129,7 +121,7 @@ export default function UpgradeScreen() {
 
   const handleChoosePlan = async (plan: PlanTier) => {
     const liveCatalog = catalogByPlan.get(plan);
-    const aPackage = liveCatalog ? getCatalogPackageForCadence(liveCatalog, billingCadence) : null;
+    const aPackage = liveCatalog ? getCatalogPackageForCadence(liveCatalog, 'monthly') : null;
 
     if (!revenueCatReady || !aPackage) {
       await actions.setActivePlan(plan);
@@ -221,8 +213,6 @@ export default function UpgradeScreen() {
   const isCurrentPlan = (tier: PlanTier) =>
     activePlan === tier && (access.subscriptionStatus === 'active' || !revenueCatReady);
 
-  const proIsCurrent = isCurrentPlan('Pro');
-
   return (
     <Screen header>
       <Photo
@@ -237,38 +227,29 @@ export default function UpgradeScreen() {
             {trialLine}
           </Text>
         ) : null}
-        <Segmented
-          labels={cadenceLabels}
-          onChange={setBillingCadence}
-          options={cadences}
-          value={billingCadence}
-        />
       </View>
 
       <View style={styles.plans}>
         {plans.map((plan) => {
           const current = isCurrentPlan(plan.tier);
           const livePlan = catalogByPlan.get(plan.tier);
-          const price =
-            billingCadence === 'annual'
-              ? livePlan?.annualLabel ?? plan.annual
-              : livePlan?.monthlyLabel ?? plan.monthly;
+          const price = livePlan?.monthlyLabel ?? plan.monthly;
 
           return (
             <PlanCard
               key={plan.tier}
-              buttonLabel={current ? 'Current' : `Choose ${plan.tier}`}
+              buttonLabel={current ? 'Current' : 'Subscribe'}
               disabled={pendingPlan !== null && pendingPlan !== plan.tier}
-              emphasis={plan.tier === 'Pro' && !proIsCurrent}
+              emphasis={!current}
               features={plan.features}
               isCurrent={current}
               loading={pendingPlan === plan.tier}
               onChoose={() => void handleChoosePlan(plan.tier)}
-              period={billingCadence === 'annual' ? '/ year' : '/ month'}
+              name={plan.name}
+              period="/ month"
               price={price}
-              recommended={plan.tier === 'Pro'}
+              recommended
               summary={plan.summary}
-              tier={plan.tier}
             />
           );
         })}

@@ -8,7 +8,6 @@ import { useLedger } from '@/providers/ledger-provider';
 const removed = [
   { title: 'Profile and sign-in', icon: 'person-outline' },
   { title: 'Transactions and receipts', icon: 'receipt-outline' },
-  { title: 'Mileage and taxes', icon: 'car-outline' },
   { title: 'Bank links', icon: 'link-outline' },
 ] as const;
 

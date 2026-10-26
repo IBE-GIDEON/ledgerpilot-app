@@ -18,7 +18,6 @@ import { clearRevenueCatCustomer } from '@/lib/billing/revenuecat';
 import {
   AddReceiptPayload,
   AddTransactionPayload,
-  AddTripPayload,
   OnboardingPayload,
   UpdateProfilePayload,
   UpdateTransactionPayload,
@@ -29,7 +28,6 @@ import {
   buildReceiptInsert,
   buildTransactionInsert,
   buildTransactionUpdate,
-  buildTripInsert,
   mapProfileRowToBillingSnapshot,
   mapProfileRowToUserProfile,
   mapReceiptRowToReceipt,
@@ -51,11 +49,7 @@ import {
 import { getSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database';
 import { syncLocalReminders } from '@/lib/notifications/native';
-import {
-  getQuarterEstimates,
-  getReserveGap,
-  getYearSummary,
-} from '@/lib/tax';
+import { getTotals, MoneyTotals } from '@/lib/summary';
 import {
   BillingSnapshot,
   DeductionInsight,
@@ -67,7 +61,6 @@ import {
   SubscriptionStatus,
   Transaction,
   TransactionKind,
-  TripClassification,
   UserProfile,
 } from '@/types/ledger';
 
@@ -110,15 +103,10 @@ type LedgerAction =
   | { type: 'addTransaction'; payload: AddTransactionPayload }
   | { type: 'updateTransaction'; payload: UpdateTransactionPayload }
   | { type: 'deleteTransaction'; id: string }
-  | { type: 'toggleTransactionDeductible'; id: string }
   | { type: 'cycleTransactionCategory'; id: string }
   | { type: 'addReceipt'; payload: AddReceiptPayload }
   | { type: 'deleteReceipt'; id: string }
   | { type: 'toggleReceiptVerified'; id: string }
-  | { type: 'addTrip'; payload: AddTripPayload }
-  | { type: 'deleteTrip'; id: string }
-  | { type: 'cycleTripClassification'; id: string }
-  | { type: 'setReservePercent'; value: number }
   | { type: 'setActivePlan'; plan: PlanTier }
   | { type: 'updateAvatar'; url: string }
   | { type: 'updateProfile'; payload: UpdateProfilePayload };
@@ -130,7 +118,6 @@ interface LedgerContextValue extends LedgerState {
   authBusy: boolean;
   backendMode: typeof env.backendMode;
   isHydratingAuth: boolean;
-  quarters: ReturnType<typeof getQuarterEstimates>;
   usingLiveBackend: boolean;
   access: {
     billingSetupComplete: boolean;
@@ -141,22 +128,11 @@ interface LedgerContextValue extends LedgerState {
     trialDaysRemaining: number;
     trialEndsAt: string | null;
   };
-  /** All figures are for `year`, the current calendar year. */
+  /** Money in, money out and what's left, for the current month and calendar year. */
   metrics: {
     year: number;
-    income: number;
-    expenses: number;
-    netProfit: number;
-    deductibleTotal: number;
-    mileageWriteOff: number;
-    reserveTarget: number;
-    reserveGap: number;
-    /** Payments recorded in the Taxes category. */
-    taxPaid: number;
-    /** The year's set-aside minus tax already paid. */
-    stillToSetAside: number;
-    afterTaxIncome: number;
-    uncategorizedReceiptValue: number;
+    month: MoneyTotals;
+    thisYear: MoneyTotals;
   };
   auth: {
     deleteAccount: () => Promise<void>;
@@ -174,7 +150,6 @@ interface LedgerContextValue extends LedgerState {
   actions: {
     addTransaction: (payload: AddTransactionPayload) => Promise<void>;
     addReceipt: (payload: AddReceiptPayload) => Promise<void>;
-    addTrip: (payload: AddTripPayload) => Promise<void>;
     completeBillingSetup: (params: {
       plan: PlanTier;
       paymentMethodStatus?: PaymentMethodStatus;
@@ -182,16 +157,12 @@ interface LedgerContextValue extends LedgerState {
     }) => Promise<void>;
     completeOnboarding: (payload: OnboardingPayload) => Promise<void>;
     cycleTransactionCategory: (id: string) => Promise<void>;
-    cycleTripClassification: (id: string) => Promise<void>;
     deleteReceipt: (id: string) => Promise<void>;
     deleteTransaction: (id: string) => Promise<void>;
-    deleteTrip: (id: string) => Promise<void>;
     refreshData: () => Promise<void>;
     setActivePlan: (plan: PlanTier) => Promise<void>;
-    setReservePercent: (value: number) => Promise<void>;
     startSession: (name: string) => void;
     toggleReceiptVerified: (id: string) => Promise<void>;
-    toggleTransactionDeductible: (id: string) => Promise<void>;
     updateTransaction: (payload: UpdateTransactionPayload) => Promise<void>;
     updateAvatar: (uri: string) => Promise<void>;
     updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
@@ -212,7 +183,6 @@ const initialState: LedgerState = {
   deductionInsights: [],
 };
 
-const classificationCycle: TripClassification[] = ['Business', 'Mixed', 'Personal'];
 const missingProfilesColumnPattern = /Could not find the '([^']+)' column of 'profiles' in the schema cache/i;
 let hasWarnedMissingBillingColumns = false;
 
@@ -224,12 +194,6 @@ function nextCategory(currentCategory: string): string {
   );
   const fallbackIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % expenseCategories.length;
   return expenseCategories[fallbackIndex];
-}
-
-function nextClassification(current: TripClassification): TripClassification {
-  const currentIndex = classificationCycle.indexOf(current);
-  const fallbackIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % classificationCycle.length;
-  return classificationCycle[fallbackIndex];
 }
 
 function getReservePercentForIncomeStyle(incomeStyle: IncomeStyle): number {
@@ -476,15 +440,6 @@ function ledgerReducer(state: LedgerState, action: LedgerAction): LedgerState {
         ...state,
         transactions: state.transactions.filter((transaction) => transaction.id !== action.id),
       };
-    case 'toggleTransactionDeductible':
-      return {
-        ...state,
-        transactions: state.transactions.map((transaction) =>
-          transaction.id === action.id
-            ? { ...transaction, deductible: !transaction.deductible }
-            : transaction
-        ),
-      };
     case 'cycleTransactionCategory':
       return {
         ...state,
@@ -567,38 +522,6 @@ function ledgerReducer(state: LedgerState, action: LedgerAction): LedgerState {
               }
             : receipt
         ),
-      };
-    case 'addTrip':
-      return {
-        ...state,
-        trips: [
-          {
-            id: `trip-${Date.now()}`,
-            classification: action.payload.classification ?? 'Business',
-            date: new Date().toISOString(),
-            ...action.payload,
-          },
-          ...state.trips,
-        ],
-      };
-    case 'deleteTrip':
-      return {
-        ...state,
-        trips: state.trips.filter((trip) => trip.id !== action.id),
-      };
-    case 'cycleTripClassification':
-      return {
-        ...state,
-        trips: state.trips.map((trip) =>
-          trip.id === action.id
-            ? { ...trip, classification: nextClassification(trip.classification) }
-            : trip
-        ),
-      };
-    case 'setReservePercent':
-      return {
-        ...state,
-        reservePercent: Math.max(10, Math.min(45, action.value)),
       };
     case 'setActivePlan':
       return {
@@ -1298,42 +1221,6 @@ export function LedgerProvider({ children }: PropsWithChildren) {
     [hydrateFromSessionUser, state.isAuthenticated, supabase]
   );
 
-  const toggleTransactionDeductible = useCallback(
-    async (id: string) => {
-      const transaction = state.transactions.find((item) => item.id === id);
-
-      if (!transaction) {
-        return;
-      }
-
-      if (!supabase || !usingSupabaseBackend || !state.isAuthenticated) {
-        dispatch({ type: 'toggleTransactionDeductible', id });
-        return;
-      }
-
-      const { data, error } = await supabase.auth.getUser();
-      const user = data.user;
-
-      if (error || !user) {
-        dispatch({ type: 'toggleTransactionDeductible', id });
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ deductible: !transaction.deductible })
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
-
-      await hydrateFromSessionUser(user);
-    },
-    [hydrateFromSessionUser, state.isAuthenticated, state.transactions, supabase]
-  );
-
   const cycleTransactionCategory = useCallback(
     async (id: string) => {
       const transaction = state.transactions.find((item) => item.id === id);
@@ -1647,130 +1534,6 @@ export function LedgerProvider({ children }: PropsWithChildren) {
     [hydrateFromSessionUser, state.isAuthenticated, state.receipts, supabase]
   );
 
-  const addTrip = useCallback(
-    async (payload: AddTripPayload) => {
-      if (!supabase || !usingSupabaseBackend || !state.isAuthenticated) {
-        dispatch({ type: 'addTrip', payload });
-        return;
-      }
-
-      const { data, error } = await supabase.auth.getUser();
-      const user = data.user;
-
-      if (error || !user) {
-        dispatch({ type: 'addTrip', payload });
-        return;
-      }
-
-      const { error: insertError } = await supabase
-        .from('mileage_trips')
-        .insert(buildTripInsert(user.id, payload));
-
-      if (insertError) {
-        throw new Error(insertError.message);
-      }
-
-      await hydrateFromSessionUser(user);
-    },
-    [hydrateFromSessionUser, state.isAuthenticated, supabase]
-  );
-
-  const deleteTrip = useCallback(
-    async (id: string) => {
-      if (!supabase || !usingSupabaseBackend || !state.isAuthenticated) {
-        dispatch({ type: 'deleteTrip', id });
-        return;
-      }
-
-      const { data, error } = await supabase.auth.getUser();
-      const user = data.user;
-
-      if (error || !user) {
-        dispatch({ type: 'deleteTrip', id });
-        return;
-      }
-
-      const { error: deleteError } = await supabase
-        .from('mileage_trips')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (deleteError) {
-        throw new Error(deleteError.message);
-      }
-
-      await hydrateFromSessionUser(user);
-    },
-    [hydrateFromSessionUser, state.isAuthenticated, supabase]
-  );
-
-  const cycleTripClassification = useCallback(
-    async (id: string) => {
-      const trip = state.trips.find((item) => item.id === id);
-
-      if (!trip) {
-        return;
-      }
-
-      if (!supabase || !usingSupabaseBackend || !state.isAuthenticated) {
-        dispatch({ type: 'cycleTripClassification', id });
-        return;
-      }
-
-      const { data, error } = await supabase.auth.getUser();
-      const user = data.user;
-
-      if (error || !user) {
-        dispatch({ type: 'cycleTripClassification', id });
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from('mileage_trips')
-        .update({ classification: nextClassification(trip.classification) })
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
-
-      await hydrateFromSessionUser(user);
-    },
-    [hydrateFromSessionUser, state.isAuthenticated, state.trips, supabase]
-  );
-
-  const setReservePercent = useCallback(
-    async (value: number) => {
-      if (!supabase || !usingSupabaseBackend || !state.isAuthenticated) {
-        dispatch({ type: 'setReservePercent', value });
-        return;
-      }
-
-      const { data, error } = await supabase.auth.getUser();
-      const user = data.user;
-
-      if (error || !user) {
-        dispatch({ type: 'setReservePercent', value });
-        return;
-      }
-
-      const nextValue = Math.max(10, Math.min(45, value));
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ reserve_percent: nextValue })
-        .eq('id', user.id);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
-
-      await hydrateFromSessionUser(user);
-    },
-    [hydrateFromSessionUser, state.isAuthenticated, supabase]
-  );
-
   const setActivePlan = useCallback(
     async (plan: PlanTier) => {
       if (!supabase || !usingSupabaseBackend || !state.isAuthenticated) {
@@ -1925,24 +1688,10 @@ export function LedgerProvider({ children }: PropsWithChildren) {
   setDisplayCurrency(state.profile.currency);
 
   // Every money figure is for the current calendar year, which is how taxes are filed.
-  const year = useMemo(
-    () => getYearSummary(state.transactions, state.trips, state.reservePercent),
-    [state.reservePercent, state.transactions, state.trips]
-  );
-  const uncategorizedReceiptValue = state.receipts.reduce(
-    (total, receipt) => total + (receipt.status === 'Needs review' ? receipt.amount : 0),
-    0
-  );
-  const { mileageWriteOff, netProfit, reserveTarget } = year;
-  const deductibleTotal = year.deductibleExpenses + mileageWriteOff;
-  const quarters = useMemo(() => getQuarterEstimates(netProfit, state.reservePercent), [netProfit, state.reservePercent]);
-  const nextQuarter = quarters.find((quarter) => quarter.status === 'Next up') ?? quarters[0];
-  const reserveGap = getReserveGap(nextQuarter?.amountDue ?? 0, reserveTarget);
+  // Money in and out for the current month and calendar year.
+  const monthTotals = useMemo(() => getTotals(state.transactions, 'month'), [state.transactions]);
+  const yearTotals = useMemo(() => getTotals(state.transactions, 'year'), [state.transactions]);
   const accounts = Array.from(new Set(state.transactions.map((transaction) => transaction.source)));
-  const hasRecentTrip = state.trips.some((trip) => {
-    const tripTimestamp = new Date(trip.date).getTime();
-    return tripTimestamp >= Date.now() - 7 * 24 * 60 * 60 * 1000;
-  });
   const isTrialExpired =
     Boolean(state.billing.trialEndsAt) &&
     new Date(state.billing.trialEndsAt as string).getTime() <= Date.now();
@@ -1956,24 +1705,12 @@ export function LedgerProvider({ children }: PropsWithChildren) {
 
     // Reminders run for everyone once setup is done; scheduling never prompts for permission.
     void syncLocalReminders({
-      hasRecentTrip,
-      hasTransactions: state.transactions.length > 0,
-      mileageMode: state.profile.mileageMode,
-      quarters,
       receiptsToReview: state.receipts.filter((receipt) => receipt.status === 'Needs review').length,
       transactionsToReview: state.transactions.filter(
         (transaction) => !transaction.category?.trim() || transaction.category === 'Uncategorized'
       ).length,
     }).catch((error) => console.warn('Reminders could not be scheduled:', error));
-  }, [
-    hasRecentTrip,
-    quarters,
-    state.isAuthenticated,
-    state.onboardingComplete,
-    state.profile.mileageMode,
-    state.receipts,
-    state.transactions,
-  ]);
+  }, [state.isAuthenticated, state.onboardingComplete, state.receipts, state.transactions]);
 
   const value = useMemo<LedgerContextValue>(
     () => ({
@@ -1982,7 +1719,6 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       authBusy,
       backendMode: env.backendMode,
       isHydratingAuth,
-      quarters,
       usingLiveBackend: usingSupabaseBackend,
       access: {
         billingSetupComplete: state.billing.billingSetupComplete,
@@ -1994,18 +1730,9 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         trialEndsAt: state.billing.trialEndsAt,
       },
       metrics: {
-        year: year.year,
-        income: year.income,
-        expenses: year.expenses,
-        netProfit,
-        deductibleTotal,
-        mileageWriteOff,
-        reserveTarget,
-        reserveGap,
-        taxPaid: year.taxPaid,
-        stillToSetAside: year.stillToSetAside,
-        afterTaxIncome: year.afterTaxIncome,
-        uncategorizedReceiptValue,
+        year: new Date().getFullYear(),
+        month: monthTotals,
+        thisYear: yearTotals,
       },
       auth: {
         deleteAccount,
@@ -2018,24 +1745,19 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       actions: {
         addTransaction,
         addReceipt,
-        addTrip,
         completeBillingSetup,
         completeOnboarding,
         cycleTransactionCategory,
-        cycleTripClassification,
         deleteReceipt,
         deleteTransaction,
-        deleteTrip,
         refreshData: refreshFromServer,
         setActivePlan,
-        setReservePercent,
         startSession: (name) =>
           dispatch({
             type: 'startSession',
             name: name.trim() || defaultProfile.name,
           }),
         toggleReceiptVerified,
-        toggleTransactionDeductible,
         updateTransaction,
         updateAvatar,
         updateProfile,
@@ -2045,28 +1767,19 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       accounts,
       addReceipt,
       addTransaction,
-      addTrip,
       authBusy,
       completeBillingSetup,
       completeOnboarding,
       cycleTransactionCategory,
-      cycleTripClassification,
       deleteReceipt,
       deleteTransaction,
-      deleteTrip,
       deleteAccount,
-      deductibleTotal,
       isHydratingAuth,
       isBlocked,
       isTrialExpired,
-      mileageWriteOff,
-      netProfit,
-      quarters,
+      monthTotals,
       refreshFromServer,
-      reserveGap,
-      reserveTarget,
       setActivePlan,
-      setReservePercent,
       signInWithEmail,
       signInWithGoogle,
       signOut,
@@ -2074,13 +1787,11 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       sendPasswordResetEmail,
       state,
       toggleReceiptVerified,
-      toggleTransactionDeductible,
-      year,
       trialDaysRemaining,
-      uncategorizedReceiptValue,
       updateAvatar,
       updateProfile,
       updateTransaction,
+      yearTotals,
     ]
   );
 

@@ -7,7 +7,7 @@ import { Button } from '@/components/ds/button';
 import { Card } from '@/components/ds/surfaces';
 import { Text } from '@/components/ds/text';
 import { space } from '@/constants/theme';
-import { Feature, featureCopy, featurePlan, planIncludes } from '@/lib/billing/features';
+import { Feature, featureCopy, planIncludes } from '@/lib/billing/features';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 
@@ -34,7 +34,7 @@ export function ProGate({ feature, children }: PropsWithChildren<{ feature: Feat
       <View style={styles.row}>
         <Ionicons color={theme.accent} name="lock-closed-outline" size={16} />
         <Text variant="caption" tone="accent">
-          {`${featurePlan[feature].toUpperCase()} FEATURE`}
+          {'NEEDS A PLAN'}
         </Text>
       </View>
       <Text variant="subheading">{copy.title}</Text>
@@ -43,7 +43,7 @@ export function ProGate({ feature, children }: PropsWithChildren<{ feature: Feat
       </Text>
       <Button
         fullWidth={false}
-        label={`See ${featurePlan[feature]}`}
+        label="See plan"
         onPress={() => router.push('/upgrade')}
         size="small"
         variant="secondary"

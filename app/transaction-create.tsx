@@ -4,53 +4,53 @@ import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Chip, Field, HeaderButton, List, Row, Screen, Segmented, Text } from '@/components/ds';
-import { categoryOptionsFor, internalSources, parseAmount } from '@/components/money/money-utils';
+import { categoryOptionsFor, parseAmount } from '@/components/money/money-utils';
 import { choosePhotoSource, pickReceiptImage } from '@/components/money/receipt-capture';
-import { SwitchRow } from '@/components/ds/switch-row';
 import { radius, space, tabularNums } from '@/constants/theme';
 import { currencySymbol } from '@/lib/currencies';
 import { getDisplayCurrency } from '@/lib/formatters';
+import { bankOf, listBanks, OTHER_BANK } from '@/lib/summary';
 import { ReceiptCaptureAsset, removeUploadedReceiptAsset, uploadReceiptAsset } from '@/lib/supabase/receipts';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 import { TransactionKind } from '@/types/ledger';
 
 const kinds = ['expense', 'income'] as const;
-const kindLabels = { expense: 'Expense', income: 'Income' } as const;
+const kindLabels = { expense: 'Money out', income: 'Money in' } as const;
 const manualSource = 'Manual entry';
+const NEW_BANK = '+ New bank';
 
 /** One job: log a transaction in a few taps. */
 export default function TransactionCreateScreen() {
   const router = useRouter();
   const { theme } = useAppTheme();
-  const { accounts, actions, transactions, usingLiveBackend } = useLedger();
+  const { actions, transactions, usingLiveBackend } = useLedger();
 
   const [kind, setKind] = useState<TransactionKind>('expense');
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [category, setCategory] = useState(() => categoryOptionsFor('expense', transactions)[0] ?? 'Misc');
-  const [source, setSource] = useState(manualSource);
+  const banks = useMemo(() => listBanks(transactions), [transactions]);
+  // Start on the bank used most recently: people juggling several banks usually log a run from one.
+  const [bank, setBank] = useState(() => {
+    const latest = [...transactions].sort((a, b) => b.date.localeCompare(a.date))[0];
+    return latest ? bankOf(latest) : banks.length === 0 ? NEW_BANK : OTHER_BANK;
+  });
+  const [newBank, setNewBank] = useState('');
   const [note, setNote] = useState('');
-  const [deductible, setDeductible] = useState(true);
   const [receiptAsset, setReceiptAsset] = useState<ReceiptCaptureAsset | null>(null);
   const [captureBusy, setCaptureBusy] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ amount?: string; merchant?: string }>({});
+  const [errors, setErrors] = useState<{ amount?: string; merchant?: string; bank?: string }>({});
 
   const categories = useMemo(() => categoryOptionsFor(kind, transactions), [kind, transactions]);
-  const sources = useMemo(
-    () => [manualSource, ...accounts.filter((account) => !internalSources.includes(account))],
-    [accounts],
-  );
+  const bankOptions = [...banks, OTHER_BANK, NEW_BANK];
 
   const changeKind = (next: TransactionKind) => {
     setKind(next);
     setCategory(categoryOptionsFor(next, transactions)[0] ?? (next === 'income' ? 'Income' : 'Misc'));
     if (next === 'income') {
-      setDeductible(false);
       setReceiptAsset(null);
-    } else {
-      setDeductible(true);
     }
   };
 
@@ -88,10 +88,11 @@ export default function TransactionCreateScreen() {
     const nextErrors = {
       amount: Number.isNaN(parsed) ? 'Enter an amount above zero.' : undefined,
       merchant: merchant.trim() ? undefined : kind === 'income' ? 'Add who paid you.' : 'Add where you spent it.',
+      bank: bank === NEW_BANK && !newBank.trim() ? 'Name the bank, e.g. GTBank or Opay.' : undefined,
     };
     setErrors(nextErrors);
 
-    if (nextErrors.amount || nextErrors.merchant || !category) {
+    if (nextErrors.amount || nextErrors.merchant || nextErrors.bank || !category) {
       return;
     }
 
@@ -107,7 +108,7 @@ export default function TransactionCreateScreen() {
       await actions.addTransaction({
         amount: parsed,
         category,
-        deductible: kind === 'expense' ? deductible : false,
+        deductible: false,
         kind,
         merchant: merchant.trim(),
         note: note.trim() || (kind === 'income' ? 'Manual income entry' : 'Manual expense entry'),
@@ -121,7 +122,7 @@ export default function TransactionCreateScreen() {
                 vendor: merchant.trim(),
               }
             : undefined,
-        source,
+        source: bank === NEW_BANK ? newBank.trim() : bank === OTHER_BANK ? manualSource : bank,
       });
 
       close();
@@ -180,9 +181,29 @@ export default function TransactionCreateScreen() {
         </View>
       </View>
 
+      <View style={styles.group}>
+        <Text tone="muted" variant="smallMedium">
+          Bank
+        </Text>
+        <View style={styles.chips}>
+          {bankOptions.map((option) => (
+            <Chip key={option} label={option} onPress={() => setBank(option)} selected={bank === option} />
+          ))}
+        </View>
+        {bank === NEW_BANK ? (
+          <Field
+            autoCapitalize="words"
+            error={errors.bank}
+            label="Bank name"
+            onChangeText={setNewBank}
+            placeholder="GTBank, Opay, Chase…"
+            value={newBank}
+          />
+        ) : null}
+      </View>
+
       {kind === 'expense' ? (
         <List>
-          <SwitchRow icon="pricetag-outline" onValueChange={setDeductible} title="Deductible" value={deductible} />
           {receiptAsset ? (
             <Row
               chevron
@@ -216,24 +237,12 @@ export default function TransactionCreateScreen() {
         label="Note"
         multiline
         onChangeText={setNote}
-        placeholder="Business purpose"
+        placeholder="Optional"
         style={styles.note}
         textAlignVertical="top"
         value={note}
       />
 
-      {sources.length > 1 ? (
-        <View style={styles.group}>
-          <Text tone="muted" variant="smallMedium">
-            Account
-          </Text>
-          <View style={styles.chips}>
-            {sources.map((option) => (
-              <Chip key={option} label={option} onPress={() => setSource(option)} selected={source === option} />
-            ))}
-          </View>
-        </View>
-      ) : null}
     </Screen>
   );
 }
