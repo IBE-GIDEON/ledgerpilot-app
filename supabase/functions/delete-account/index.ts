@@ -37,6 +37,15 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // Database rows cascade with the user; stored files don't, so clear the person's folder in each bucket.
+    for (const bucket of ['receipts', 'avatars']) {
+      const { data: files } = await adminClient.storage.from(bucket).list(user.id, { limit: 1000 });
+      const paths = (files ?? []).map((file) => `${user.id}/${file.name}`);
+      if (paths.length > 0) {
+        await adminClient.storage.from(bucket).remove(paths);
+      }
+    }
+
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
 
     if (deleteError) {
