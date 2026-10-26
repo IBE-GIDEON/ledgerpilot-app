@@ -409,7 +409,7 @@ function ledgerReducer(state: LedgerState, action: LedgerAction): LedgerState {
             deductible: action.payload.kind === 'expense' ? action.payload.deductible : false,
             receiptId,
             source: action.payload.source,
-            date: timestamp,
+            date: action.payload.occurredAt ?? timestamp,
             note: action.payload.note,
           },
           ...state.transactions,

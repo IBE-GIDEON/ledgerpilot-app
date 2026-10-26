@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Amount, Button, Card, List, Row, Screen, Section, SpendBars, Text, Tile } from '@/components/ds';
@@ -8,6 +8,7 @@ import { MonthCard } from '@/components/home/month-card';
 import { dataColors, space } from '@/constants/theme';
 import { formatCompactCurrency, formatCurrency, formatDayTime } from '@/lib/formatters';
 import { bankOf, getBankTotals, getCategoryTotals, getReviewCounts, monthLabel } from '@/lib/summary';
+import { LancerAlerts } from '@/modules/lancer-alerts';
 import { useLedger } from '@/providers/ledger-provider';
 import { Transaction } from '@/types/ledger';
 
@@ -31,6 +32,14 @@ export default function HomeScreen() {
     [transactions]
   );
 
+  // Android only: nudge until bank alerts are on, since that's what fills Lancer in by itself.
+  const [alertsOff, setAlertsOff] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setAlertsOff(Boolean(LancerAlerts) && !LancerAlerts?.isAccessGranted());
+    }, [])
+  );
+
   const openBank = (bank: string) => router.push({ pathname: '/activity', params: { bank } });
 
   return (
@@ -43,6 +52,23 @@ export default function HomeScreen() {
         onPress={() => router.push('/breakdown')}
         totals={metrics.month}
       />
+
+      {alertsOff ? (
+        <Card>
+          <Text variant="subheading">Catch bank alerts automatically</Text>
+          <Text tone="muted" variant="small">
+            Lancer spots money in and out from your bank apps and texts, then asks what it was for.
+          </Text>
+          <Button
+            fullWidth={false}
+            icon="flash-outline"
+            label="Turn on"
+            onPress={() => router.push('/bank-alerts')}
+            size="small"
+            variant="secondary"
+          />
+        </Card>
+      ) : null}
 
       {transactions.length === 0 ? (
         <Card>

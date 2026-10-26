@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Reads bank app and bank SMS notifications once the person turns on Notification access. -->
+    <service
+      android:name="expo.modules.lanceralerts.AlertListenerService"
+      android:exported="true"
+      android:label="Lancer bank alerts"
+      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+      <intent-filter>
+        <action android:name="android.service.notification.NotificationListenerService" />
+      </intent-filter>
+    </service>
+
+    <!-- Receives the typed answer from the "What was this for?" notification. -->
+    <receiver
+      android:name="expo.modules.lanceralerts.ReplyReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

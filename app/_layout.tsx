@@ -16,6 +16,7 @@ import 'react-native-reanimated';
 
 import { IntroSplash } from '@/components/launch/intro-splash';
 import { fonts } from '@/constants/theme';
+import { useAlertWatcher } from '@/lib/alerts/use-alert-watcher';
 import { env } from '@/lib/config/env';
 import { useReminderRouting } from '@/lib/notifications/use-reminder-routing';
 import { getSupabaseClient } from '@/lib/supabase/client';
@@ -50,6 +51,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
   const finishIntro = useCallback(() => setIntroDone(true), []);
 
   useReminderRouting(introDone && isAuthenticated && onboardingComplete);
+  useAlertWatcher(introDone && isAuthenticated && onboardingComplete);
 
   // The animated intro takes over from the native splash as soon as fonts are in;
   // it keeps covering the app until the session has loaded too.
@@ -128,6 +130,12 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="transaction-create" options={{ title: 'New transaction', presentation: modal }} />
         <Stack.Screen name="transaction-detail" options={{ title: 'Transaction' }} />
         <Stack.Screen name="export" options={{ title: 'Export' }} />
+        <Stack.Screen
+          name="alert-answer"
+          options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen name="alert" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="bank-alerts" options={{ title: 'Bank alerts' }} />
         <Stack.Screen name="breakdown" options={{ title: 'Your year' }} />
         <Stack.Screen name="connections" options={{ title: 'Connected accounts' }} />
         <Stack.Screen name="bank-link" options={{ title: 'Link a bank' }} />

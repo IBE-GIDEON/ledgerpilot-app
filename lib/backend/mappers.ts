@@ -108,7 +108,7 @@ export function buildTransactionInsert(
     source: payload.source,
     sync_status: syncStatus,
     note: payload.note,
-    occurred_at: new Date().toISOString(),
+    occurred_at: payload.occurredAt ?? new Date().toISOString(),
   };
 }
 

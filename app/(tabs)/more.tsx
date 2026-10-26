@@ -93,6 +93,7 @@ export default function AccountScreen() {
         {featureFlags.bankSync ? (
           <Row chevron icon="link-outline" onPress={() => router.push('/connections')} title="Connected accounts" />
         ) : null}
+        <Row chevron icon="flash-outline" onPress={() => router.push('/bank-alerts')} title="Bank alerts" />
         <Row chevron icon="notifications-outline" onPress={() => router.push('/notifications')} title="Notifications" />
         <Row chevron icon="share-outline" onPress={() => router.push('/export')} title="Export" />
       </List>

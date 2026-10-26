@@ -34,6 +34,8 @@ export type AddTransactionPayload = {
   note: string;
   receipt?: Omit<AddReceiptPayload, 'transactionId'>;
   source: string;
+  /** When the money moved (ISO). Defaults to now; bank alerts pass the alert's time. */
+  occurredAt?: string;
 };
 
 export type UpdateTransactionPayload = {
