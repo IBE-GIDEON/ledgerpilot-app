@@ -1,4 +1,4 @@
 export const appInfo = {
-  supportEmail: 'support@ledgerpilot.app',
+  supportEmail: 'orevearchiveapp@gmail.com',
   legalUpdatedLabel: 'Updated October 2026',
 } as const;
