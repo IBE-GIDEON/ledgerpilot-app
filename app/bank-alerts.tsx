@@ -1,10 +1,12 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Platform, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { Badge, Button, Card, Field, List, Row, Screen, Section, Text } from '@/components/ds';
 import { space } from '@/constants/theme';
-import { addAlertFromText } from '@/lib/alerts/inbox';
+import { addAlertFromText, drainNativeAlerts } from '@/lib/alerts/inbox';
+import { formatDayTime } from '@/lib/formatters';
+import { readPermission, requestPermission } from '@/lib/notifications/native';
 import { LancerAlerts } from '@/modules/lancer-alerts';
 
 const iphoneSteps = [
@@ -15,22 +17,42 @@ const iphoneSteps = [
   'Repeat for each bank. Banks that email alerts work the same way with an Email automation.',
 ];
 
+type Seen = { sender: string; text: string; at: number; kept: boolean };
+type Diagnostics = { connectedAt: number; lastSeenAt: number; log: Seen[] };
+
+function readDiagnostics(): Diagnostics | null {
+  try {
+    return LancerAlerts ? (JSON.parse(LancerAlerts.getDiagnostics()) as Diagnostics) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** One job: switch on automatic bank alerts, or hand Lancer an alert by hand. */
 export default function BankAlertsScreen() {
   const router = useRouter();
   const [granted, setGranted] = useState(false);
+  const [canNotify, setCanNotify] = useState(true);
   const [batteryOk, setBatteryOk] = useState(true);
+  const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [pasted, setPasted] = useState('');
   const [reading, setReading] = useState(false);
+
+  const refresh = useCallback(() => {
+    if (!LancerAlerts) {
+      return;
+    }
+    setGranted(LancerAlerts.isAccessGranted());
+    setBatteryOk(LancerAlerts.isIgnoringBatteryOptimizations());
+    setDiagnostics(readDiagnostics());
+    void readPermission().then((state) => setCanNotify(state === 'granted'));
+  }, []);
 
   // Re-check when the person comes back from Android settings.
   useFocusEffect(
     useCallback(() => {
-      if (LancerAlerts) {
-        setGranted(LancerAlerts.isAccessGranted());
-        setBatteryOk(LancerAlerts.isIgnoringBatteryOptimizations());
-      }
-    }, [])
+      refresh();
+    }, [refresh])
   );
 
   const turnOn = () => {
@@ -39,9 +61,29 @@ export default function BankAlertsScreen() {
       'Lancer looks at notifications from your bank apps and bank text messages to spot money in and out. It keeps only the amount, bank, time and who it was to or from. Chat apps are ignored and nothing else is stored or sent anywhere.\n\nOn the next screen, find Lancer and switch it on.',
       [
         { text: 'Not now', style: 'cancel' },
-        { text: 'Continue', onPress: () => LancerAlerts?.openAccessSettings() },
+        {
+          text: 'Continue',
+          onPress: () => {
+            // Lancer's own "What was this for?" pop-up needs notification permission too.
+            void requestPermission().finally(() => LancerAlerts?.openAccessSettings());
+          },
+        },
       ]
     );
+  };
+
+  const allowNotifications = async () => {
+    const ok = await requestPermission();
+    if (!ok) {
+      void Linking.openSettings();
+    }
+    refresh();
+  };
+
+  const reconnect = () => {
+    LancerAlerts?.reconnect();
+    void drainNativeAlerts();
+    setTimeout(refresh, 1500);
   };
 
   const readPasted = async () => {
@@ -52,39 +94,83 @@ export default function BankAlertsScreen() {
         setPasted('');
         router.push('/alert-answer');
       } else {
-        Alert.alert('Couldn’t read that', 'Paste the whole alert, including the amount and “credit” or “debit”.');
+        Alert.alert('Couldn’t read that', 'Paste the whole alert, including the amount.');
       }
     } finally {
       setReading(false);
     }
   };
 
+  const listening = Boolean(diagnostics?.connectedAt);
+
   return (
     <Screen header>
       {Platform.OS === 'android' ? (
         LancerAlerts ? (
-          <Section
-            footnote="Works for bank apps like OPay, Kuda, PalmPay and Moniepoint, and for bank text messages. The bank app’s notifications must be on."
-            title="Automatic">
-            <List>
-              <Row
-                icon="notifications-outline"
-                subtitle={granted ? 'Lancer asks about each alert as it arrives' : 'Off'}
-                title="Read bank alerts"
-                trailing={granted ? <Badge label="On" tone="positive" /> : <Badge label="Off" />}
-              />
-              {granted && !batteryOk ? (
+          <>
+            <Section
+              footnote="Works for bank apps like OPay, Kuda, PalmPay and Moniepoint, and for bank text messages. The bank app’s notifications must be on."
+              title="Automatic">
+              <List>
                 <Row
-                  chevron
-                  icon="battery-half-outline"
-                  onPress={() => LancerAlerts?.openBatterySettings()}
-                  subtitle="Find Lancer and choose “Don’t optimise”, so alerts aren’t missed"
-                  title="Keep Lancer running"
+                  icon="notifications-outline"
+                  subtitle={granted ? (listening ? 'Listening for bank alerts' : 'On, but not started yet') : 'Off'}
+                  title="Read bank alerts"
+                  trailing={granted ? <Badge label="On" tone="positive" /> : <Badge label="Off" />}
                 />
-              ) : null}
-            </List>
-            {granted ? null : <Button label="Turn on" onPress={turnOn} />}
-          </Section>
+                {granted && !canNotify ? (
+                  <Row
+                    chevron
+                    icon="alert-circle-outline"
+                    iconTone="accent"
+                    onPress={() => void allowNotifications()}
+                    subtitle="Needed for the “What was this for?” pop-up"
+                    title="Allow Lancer notifications"
+                  />
+                ) : null}
+                {granted && !batteryOk ? (
+                  <Row
+                    chevron
+                    icon="battery-half-outline"
+                    onPress={() => LancerAlerts?.openBatterySettings()}
+                    subtitle="Find Lancer and choose “Don’t optimise”, so alerts aren’t missed"
+                    title="Keep Lancer running"
+                  />
+                ) : null}
+                {granted && !listening ? (
+                  <Row chevron icon="refresh-outline" onPress={reconnect} title="Start listening" />
+                ) : null}
+              </List>
+              {granted ? null : <Button label="Turn on" onPress={turnOn} />}
+            </Section>
+
+            {granted ? (
+              <Section
+                footnote="Notifications with an amount in them, newest first. Only kept on this phone."
+                title="What Lancer saw">
+                {diagnostics && diagnostics.log.length > 0 ? (
+                  <List>
+                    {[...diagnostics.log].reverse().map((item) => (
+                      <Row
+                        key={`${item.at}-${item.sender}`}
+                        subtitle={item.text}
+                        title={`${item.sender} · ${formatDayTime(new Date(item.at).toISOString())}`}
+                        trailing={<Badge label={item.kept ? 'Asked' : 'Skipped'} tone={item.kept ? 'positive' : undefined} />}
+                      />
+                    ))}
+                  </List>
+                ) : (
+                  <Card tone="muted">
+                    <Text tone="muted" variant="small">
+                      {diagnostics?.lastSeenAt
+                        ? `No money alerts yet. Last notification of any kind: ${formatDayTime(new Date(diagnostics.lastSeenAt).toISOString())}.`
+                        : 'Nothing has reached Lancer yet. Tap Start listening, or switch access off and on again.'}
+                    </Text>
+                  </Card>
+                )}
+              </Section>
+            ) : null}
+          </>
         ) : (
           <Card>
             <Text variant="subheading">Install Lancer to use this</Text>
@@ -94,7 +180,9 @@ export default function BankAlertsScreen() {
           </Card>
         )
       ) : (
-        <Section footnote="iPhones don’t let apps read texts or other apps’ notifications, so a Shortcut passes each bank text to Lancer." title="On iPhone">
+        <Section
+          footnote="iPhones don’t let apps read texts or other apps’ notifications, so a Shortcut passes each bank text to Lancer."
+          title="On iPhone">
           <Card>
             {iphoneSteps.map((step, index) => (
               <View key={step} style={styles.step}>

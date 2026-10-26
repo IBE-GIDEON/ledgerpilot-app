@@ -1,9 +1,11 @@
 package expo.modules.lanceralerts
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import androidx.core.app.NotificationManagerCompat
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
@@ -49,6 +51,17 @@ class LancerAlertsModule : Module() {
 
     Function("takePending") {
       AlertStore.takeAll(context)
+    }
+
+    Function("getDiagnostics") {
+      AlertStore.diagnostics(context)
+    }
+
+    // Some phones turn access on without starting the listener until asked again.
+    Function("reconnect") {
+      if (NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)) {
+        NotificationListenerService.requestRebind(ComponentName(context, AlertListenerService::class.java))
+      }
     }
 
     Function("cancelPrompt") { id: String ->

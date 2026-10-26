@@ -2,13 +2,17 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, BackHandler, StyleSheet, View } from 'react-native';
 
-import { Amount, Button, Card, Chip, Field, Screen, Text } from '@/components/ds';
+import { Amount, Button, Card, Chip, Field, Screen, Segmented, Text } from '@/components/ds';
 import { categoryOptionsFor } from '@/components/money/money-utils';
 import { space } from '@/constants/theme';
 import { resolveAlert, useAlertInbox } from '@/lib/alerts/inbox';
 import { alertToTransaction } from '@/lib/alerts/save';
 import { formatDayTime } from '@/lib/formatters';
 import { useLedger } from '@/providers/ledger-provider';
+import { TransactionKind } from '@/types/ledger';
+
+const kinds = ['income', 'expense'] as const;
+const kindLabels = { income: 'Money in', expense: 'Money out' } as const;
 
 /**
  * One job: say what a bank alert was for. There's no back or close: the only ways out are answering,
@@ -23,6 +27,7 @@ export default function AlertAnswerScreen() {
 
   const [answer, setAnswer] = useState('');
   const [category, setCategory] = useState<string | null>(null);
+  const [kind, setKind] = useState<TransactionKind>(alert?.kind ?? 'expense');
   const [saving, setSaving] = useState(false);
   const [shownId, setShownId] = useState(alert?.id);
 
@@ -31,6 +36,7 @@ export default function AlertAnswerScreen() {
     setShownId(alert?.id);
     setAnswer('');
     setCategory(null);
+    setKind(alert?.kind ?? 'expense');
   }
 
   // Android's back button can't skip the question either.
@@ -55,9 +61,11 @@ export default function AlertAnswerScreen() {
     return null;
   }
 
-  const income = alert.kind === 'income';
+  // Older saved alerts have no kindSure; their direction was always read from the text.
+  const unsure = alert.kindSure === false;
+  const income = kind === 'income';
   const ready = answer.trim().length > 0;
-  const categories = categoryOptionsFor(alert.kind, transactions).slice(0, 10);
+  const categories = categoryOptionsFor(kind, transactions).slice(0, 10);
 
   const save = async () => {
     if (!ready) {
@@ -65,7 +73,7 @@ export default function AlertAnswerScreen() {
     }
     setSaving(true);
     try {
-      await actions.addTransaction(alertToTransaction(alert, answer, category ?? undefined));
+      await actions.addTransaction(alertToTransaction({ ...alert, kind }, answer, category ?? undefined));
       await resolveAlert(alert.id, true);
     } catch (error) {
       Alert.alert('Not saved', error instanceof Error ? error.message : 'Try again in a moment.');
@@ -94,9 +102,21 @@ export default function AlertAnswerScreen() {
           {queue.length > 1 ? `Bank alert · 1 of ${queue.length}` : 'Bank alert'}
         </Text>
         <Text accessibilityRole="header" variant="title">
-          {income ? 'Money came in' : 'Money went out'}
+          {unsure ? 'Money moved' : income ? 'Money came in' : 'Money went out'}
         </Text>
       </View>
+
+      {unsure ? (
+        <Segmented
+          labels={kindLabels}
+          onChange={(next) => {
+            setKind(next);
+            setCategory(null);
+          }}
+          options={kinds}
+          value={kind}
+        />
+      ) : null}
 
       <Card tone="primary">
         <Amount cents signed size="display" tone="inverse" value={income ? alert.amount : -alert.amount} />

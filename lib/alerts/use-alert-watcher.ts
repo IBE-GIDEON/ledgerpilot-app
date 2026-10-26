@@ -26,6 +26,7 @@ export function useAlertWatcher(ready: boolean) {
       return;
     }
 
+    LancerAlerts?.reconnect();
     void drainNativeAlerts();
     const appState = AppState.addEventListener('change', (state) => {
       if (state === 'active') {

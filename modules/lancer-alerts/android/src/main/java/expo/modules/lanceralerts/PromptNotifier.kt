@@ -25,10 +25,14 @@ object PromptNotifier {
     if (!manager.areNotificationsEnabled()) return
     ensureChannel(context)
 
-    val income = MoneyText.isIncome(text)
+    val direction = MoneyText.direction(text)
     val amount = MoneyText.amount(text) ?: "Money"
-    val title = if (income) "$amount came in · $sender" else "$amount went out · $sender"
-    val question = if (income) "Who sent this, and what for?" else "What was this for?"
+    val title = when (direction) {
+      true -> "$amount came in · $sender"
+      false -> "$amount went out · $sender"
+      null -> "$amount moved · $sender"
+    }
+    val question = if (direction == true) "Who sent this, and what for?" else "What was this for?"
 
     val replyIntent = Intent(context, ReplyReceiver::class.java)
       .setAction("expo.modules.lanceralerts.REPLY")

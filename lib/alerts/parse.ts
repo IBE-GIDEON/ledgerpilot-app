@@ -19,6 +19,8 @@ export type RawAlert = {
 export type ParsedAlert = {
   id: string;
   kind: AlertKind;
+  /** False when a bank's alert gave an amount but no clear in/out word; the person picks. */
+  kindSure: boolean;
   amount: number;
   bank: string;
   /** Who it was from or to, when the alert says. */
@@ -36,9 +38,9 @@ const AMOUNT = new RegExp(`${CURRENCY}\\s?${NUMBER}`, 'gi');
 const LABELLED_AMOUNT = new RegExp(`\\b(?:amt|amount)\\s*[:\\-]?\\s*(?:${CURRENCY})?\\s?${NUMBER}`, 'i');
 const BALANCE = new RegExp(`\\b(?:avail(?:able)?\\.?\\s*)?bal(?:ance)?\\.?\\s*(?:is|:|-)?\\s*(?:${CURRENCY})?\\s?${NUMBER}`, 'i');
 
-const CREDIT = /\b(credit(?:ed)?|cr|received|receive|inflow|deposit(?:ed)?|incoming|reversal|reversed|refund(?:ed)?|sent you|paid you|money in)\b/i;
+const CREDIT = /\b(credit(?:ed)?|cr|received|receive|inflow|deposit(?:ed)?|incoming|reversal|reversed|refund(?:ed)?|sent you|paid you|transferred to you|money in|cash ?in|top[- ]?up|funded|added to your)\b/i;
 const DEBIT =
-  /\b(debit(?:ed)?|dr|sent|send|transfer(?:red)? to|transfer of|transfer successful|withdraw(?:al|n)?|purchase|paid|payment|spent|charged|deducted|pos|atm|airtime|data bundle|bill|money out)\b/i;
+  /\b(debit(?:ed)?|dr|sent|send|transfer(?:red)?|withdraw(?:al|n)?|outflow|purchase|bought|paid|payment|spent|charged|deducted|pos|atm|airtime|recharge|data bundle|bill|money out|cash ?out)\b/i;
 
 /** Marketing, loans and codes mention money but aren't money moving. */
 const NOISE =
@@ -147,6 +149,10 @@ const KNOWN_BANKS: [RegExp, string][] = [
   [/m-?pesa/i, 'M-Pesa'],
 ];
 
+export function isKnownBank(sender: string) {
+  return /\bbank\b|\bmfb\b|wallet|\bpay\b/i.test(sender) || KNOWN_BANKS.some(([pattern]) => pattern.test(sender));
+}
+
 /** "ZENITHBANK", "GTWorld" and "GTBank" all become one tidy bank name. */
 export function normalizeBank(sender: string) {
   const known = KNOWN_BANKS.find(([pattern]) => pattern.test(sender));
@@ -163,10 +169,6 @@ export function parseAlert(raw: RawAlert): ParsedAlert | null {
   }
 
   const text = clean(`${raw.title} ${raw.text}`);
-  const kind = detectKind(text);
-  if (!kind) {
-    return null;
-  }
   if (NOISE.test(text) && !/\b(credit(?:ed)?|debit(?:ed)?)\b/i.test(text)) {
     return null;
   }
@@ -176,10 +178,18 @@ export function parseAlert(raw: RawAlert): ParsedAlert | null {
     return null;
   }
 
+  // An amount from a bank or money app counts even when its wording is new to us; the person says which way.
+  const detected = detectKind(text);
+  if (!detected && !isKnownBank(`${raw.sender} ${raw.title}`)) {
+    return null;
+  }
+  const kind = detected ?? 'expense';
+
   const balance = BALANCE.exec(text);
   return {
     id: raw.id,
     kind,
+    kindSure: detected !== null,
     amount,
     bank: normalizeBank(raw.sender || raw.title),
     counterparty: detectCounterparty(text, kind),

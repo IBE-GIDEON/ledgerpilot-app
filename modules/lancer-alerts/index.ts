@@ -9,6 +9,10 @@ type LancerAlertsNative = {
   /** JSON: {"alerts": RawAlert[], "answers": {[id]: string}}. Clears what it returns. */
   takePending(): string;
   cancelPrompt(id: string): void;
+  /** JSON: {"connectedAt": ms, "lastSeenAt": ms, "log": {sender, text, at, kept}[]}. */
+  getDiagnostics(): string;
+  /** Asks Android to restart the listener when access is on but it isn't running. */
+  reconnect(): void;
   addListener(event: 'onAlert', listener: () => void): EventSubscription;
 };
 
