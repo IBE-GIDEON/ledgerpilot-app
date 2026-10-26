@@ -108,14 +108,14 @@ export async function drainNativeAlerts() {
 }
 
 /** A pasted or shared alert (iPhone Shortcuts, copy and paste). Returns null when it isn't money moving. */
-export async function addAlertFromText(text: string, sender?: string) {
+export async function addAlertFromText(text: string, sender?: string, postedAt = Date.now()) {
   const id = `text-${Date.now()}`;
   const raw: RawAlert = {
     id,
     sender: sender?.trim() || normalizeBank(text),
     title: '',
     text: text.trim(),
-    postedAt: Date.now(),
+    postedAt,
   };
   const parsed = parseAlert(raw);
   if (!parsed) {

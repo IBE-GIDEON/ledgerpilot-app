@@ -169,7 +169,10 @@ export function parseAlert(raw: RawAlert): ParsedAlert | null {
   }
 
   const text = clean(`${raw.title} ${raw.text}`);
-  if (NOISE.test(text) && !/\b(credit(?:ed)?|debit(?:ed)?)\b/i.test(text)) {
+  // Banks tack promos onto real alerts ("…successful. Win big with OPay!"), so an advert word only
+  // rules an alert out when nothing in it says money came in or went out.
+  const detected = detectKind(text);
+  if (NOISE.test(text) && !detected) {
     return null;
   }
 
@@ -179,7 +182,6 @@ export function parseAlert(raw: RawAlert): ParsedAlert | null {
   }
 
   // An amount from a bank or money app counts even when its wording is new to us; the person says which way.
-  const detected = detectKind(text);
   if (!detected && !isKnownBank(`${raw.sender} ${raw.title}`)) {
     return null;
   }

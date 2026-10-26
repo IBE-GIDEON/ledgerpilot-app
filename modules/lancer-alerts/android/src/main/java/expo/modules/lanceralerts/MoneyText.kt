@@ -14,6 +14,17 @@ object MoneyText {
   private val BANKISH =
     Regex("bank|\\bmfb\\b|wallet|\\bpay\\b|opay|kuda|palm\\s?pay|moniepoint|gtworld|gtco|zenith|access|first\\s?bank|fbn|\\buba\\b|fidelity|fcmb|sterling|wema|alat|polaris|ecobank|stanbic|keystone|providus|carbon|fair\\s?money|chipper|m-?pesa", RegexOption.IGNORE_CASE)
 
+  private val NAMES = listOf(
+    "opay" to "OPay", "kuda" to "Kuda", "palm\\s?pay|transsnet" to "PalmPay", "moniepoint|teamapt" to "Moniepoint",
+    "gtworld|gtbank|gtco" to "GTBank", "zenith" to "Zenith Bank", "access" to "Access Bank", "firstbank|fbn" to "First Bank",
+    "\\buba\\b|vericash" to "UBA", "fidelity" to "Fidelity Bank", "fcmb" to "FCMB", "sterling" to "Sterling Bank",
+    "wema|alat" to "Wema Bank", "polaris" to "Polaris Bank", "ecobank" to "Ecobank", "stanbic" to "Stanbic IBTC",
+    "carbon|lenddo" to "Carbon", "fairmoney" to "FairMoney", "chipper" to "Chipper Cash"
+  ).map { (pattern, name) -> Regex(pattern, RegexOption.IGNORE_CASE) to name }
+
+  /** "team.opay.pay" → "OPay", for when Android won't tell Lancer another app's name. */
+  fun bankName(raw: String): String? = NAMES.firstOrNull { it.first.containsMatchIn(raw) }?.second
+
   fun hasAmount(text: String) = amount(text) != null
 
   fun isBankish(sender: String) = BANKISH.containsMatchIn(sender)
@@ -21,9 +32,10 @@ object MoneyText {
   /** Worth asking about: an amount, not a code or an advert, and either an in/out word or a bank sender. */
   fun looksLikeMoney(sender: String, text: String): Boolean {
     if (!hasAmount(text)) return false
-    val explicit = Regex("\\b(credit|debit)", RegexOption.IGNORE_CASE).containsMatchIn(text)
-    if (NOISE.containsMatchIn(text) && !explicit) return false
-    return CREDIT.containsMatchIn(text) || DEBIT.containsMatchIn(text) || isBankish(sender)
+    // Banks tack promos onto real alerts, so an advert word only rules one out when nothing says in or out.
+    val saysDirection = CREDIT.containsMatchIn(text) || DEBIT.containsMatchIn(text)
+    if (NOISE.containsMatchIn(text) && !saysDirection) return false
+    return saysDirection || isBankish(sender)
   }
 
   /** The amount as written ("₦5,000.00"), for the prompt's title. */

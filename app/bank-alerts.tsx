@@ -5,6 +5,7 @@ import { Alert, Linking, Platform, StyleSheet, View } from 'react-native';
 import { Badge, Button, Card, Field, List, Row, Screen, Section, Text } from '@/components/ds';
 import { space } from '@/constants/theme';
 import { addAlertFromText, drainNativeAlerts } from '@/lib/alerts/inbox';
+import { normalizeBank } from '@/lib/alerts/parse';
 import { formatDayTime } from '@/lib/formatters';
 import { readPermission, requestPermission } from '@/lib/notifications/native';
 import { LancerAlerts } from '@/modules/lancer-alerts';
@@ -86,6 +87,19 @@ export default function BankAlertsScreen() {
     setTimeout(refresh, 1500);
   };
 
+  // A skipped notification that was real money: put it through the normal must-answer question.
+  const askAbout = async (item: Seen) => {
+    const parsed = await addAlertFromText(item.text, item.sender, item.at);
+    if (parsed) {
+      router.push('/alert-answer');
+      return;
+    }
+    Alert.alert('No amount found', 'Lancer couldn’t find an amount in that notification.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Add it myself', onPress: () => router.push('/transaction-create') },
+    ]);
+  };
+
   const readPasted = async () => {
     setReading(true);
     try {
@@ -149,16 +163,30 @@ export default function BankAlertsScreen() {
                 footnote="Notifications with an amount in them, newest first. Only kept on this phone."
                 title="What Lancer saw">
                 {diagnostics && diagnostics.log.length > 0 ? (
-                  <List>
+                  <View style={styles.seen}>
                     {[...diagnostics.log].reverse().map((item) => (
-                      <Row
-                        key={`${item.at}-${item.sender}`}
-                        subtitle={item.text}
-                        title={`${item.sender} · ${formatDayTime(new Date(item.at).toISOString())}`}
-                        trailing={<Badge label={item.kept ? 'Asked' : 'Skipped'} tone={item.kept ? 'positive' : undefined} />}
-                      />
+                      <Card key={`${item.at}-${item.sender}`}>
+                        <View style={styles.seenTop}>
+                          <Text numberOfLines={1} style={styles.stepText} variant="bodyMedium">
+                            {`${normalizeBank(item.sender)} · ${formatDayTime(new Date(item.at).toISOString())}`}
+                          </Text>
+                          <Badge label={item.kept ? 'Asked' : 'Skipped'} tone={item.kept ? 'positive' : undefined} />
+                        </View>
+                        <Text tone="muted" variant="small">
+                          {item.text}
+                        </Text>
+                        {item.kept ? null : (
+                          <Button
+                            fullWidth={false}
+                            label="Ask me about this"
+                            onPress={() => void askAbout(item)}
+                            size="small"
+                            variant="secondary"
+                          />
+                        )}
+                      </Card>
                     ))}
-                  </List>
+                  </View>
                 ) : (
                   <Card tone="muted">
                     <Text tone="muted" variant="small">
@@ -230,5 +258,13 @@ const styles = StyleSheet.create({
   },
   paste: {
     minHeight: 96,
+  },
+  seen: {
+    gap: space.sm,
+  },
+  seenTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.sm,
   },
 });

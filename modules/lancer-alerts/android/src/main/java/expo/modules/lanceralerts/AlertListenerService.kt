@@ -79,12 +79,16 @@ class AlertListenerService : NotificationListenerService() {
     return parts.joinToString(" ").trim()
   }
 
-  private fun appLabel(pkg: String): String =
-    try {
-      packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
-    } catch (_: Exception) {
-      pkg
-    }
+  // Android 11+ hides other apps' names unless declared, so fall back to recognising the package.
+  private fun appLabel(pkg: String): String {
+    val label =
+      try {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+      } catch (_: Exception) {
+        pkg
+      }
+    return if (label == pkg) MoneyText.bankName(pkg) ?: pkg else label
+  }
 
   companion object {
     private val IGNORED_PACKAGES =
