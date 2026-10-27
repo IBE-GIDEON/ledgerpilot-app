@@ -51,8 +51,8 @@ export function useAlertWatcher(ready: boolean) {
         continue;
       }
       saving.current.add(alert.id);
-      void actions
-        .addTransaction(alertToTransaction(alert, alert.answer))
+      void alertToTransaction(alert, alert.answer)
+        .then((transaction) => actions.addTransaction(transaction))
         .then(() => resolveAlert(alert.id, true))
         .catch(() => undefined)
         .finally(() => saving.current.delete(alert.id));

@@ -6,8 +6,11 @@ import { Amount, Button, Card, Chip, Field, Screen, Segmented, Text } from '@/co
 import { categoryOptionsFor } from '@/components/money/money-utils';
 import { space } from '@/constants/theme';
 import { resolveAlert, useAlertInbox } from '@/lib/alerts/inbox';
-import { alertToTransaction } from '@/lib/alerts/save';
+import { alertCurrency } from '@/lib/alerts/parse';
+import { alertToTransaction, conversionNote, convertAlert } from '@/lib/alerts/save';
+import { useDisplayCurrency } from '@/lib/currency-context';
 import { formatDayTime } from '@/lib/formatters';
+import { Converted, formatIn, RATES_CREDIT } from '@/lib/fx';
 import { useLedger } from '@/providers/ledger-provider';
 import { TransactionKind } from '@/types/ledger';
 
@@ -47,6 +50,22 @@ export default function AlertAnswerScreen() {
     }, [])
   );
 
+  // The amount in the person's own currency; until a rate arrives the card shows the alert's own money.
+  const currency = useDisplayCurrency();
+  const [converted, setConverted] = useState<{ id: string; value: Converted } | null>(null);
+  useEffect(() => {
+    if (!alert) {
+      return;
+    }
+    let live = true;
+    void convertAlert(alert, currency).then((value) => {
+      if (live) setConverted({ id: alert.id, value });
+    });
+    return () => {
+      live = false;
+    };
+  }, [alert, currency]);
+
   useEffect(() => {
     if (!alert) {
       if (router.canGoBack()) {
@@ -66,6 +85,9 @@ export default function AlertAnswerScreen() {
   const income = kind === 'income';
   const ready = answer.trim().length > 0;
   const categories = categoryOptionsFor(kind, transactions).slice(0, 10);
+  const conversion = converted?.id === alert.id ? converted.value : null;
+  const original = alertCurrency(alert);
+  const foreign = Boolean(original && original !== currency);
 
   const save = async () => {
     if (!ready) {
@@ -73,7 +95,7 @@ export default function AlertAnswerScreen() {
     }
     setSaving(true);
     try {
-      await actions.addTransaction(alertToTransaction({ ...alert, kind }, answer, category ?? undefined));
+      await actions.addTransaction(await alertToTransaction({ ...alert, kind }, answer, category ?? undefined));
       await resolveAlert(alert.id, true);
     } catch (error) {
       Alert.alert('Not saved', error instanceof Error ? error.message : 'Try again in a moment.');
@@ -119,7 +141,28 @@ export default function AlertAnswerScreen() {
       ) : null}
 
       <Card tone="primary">
-        <Amount cents signed size="display" tone="inverse" value={income ? alert.amount : -alert.amount} />
+        {foreign && !conversion?.original ? (
+          <Text tone="inverse" variant="display">
+            {`${income ? '+' : '−'}${formatIn(alert.amount, original as string)}`}
+          </Text>
+        ) : (
+          <Amount
+            cents
+            signed
+            size="display"
+            tone="inverse"
+            value={(income ? 1 : -1) * (conversion?.amount ?? alert.amount)}
+          />
+        )}
+        {conversion?.original ? (
+          <Text numberOfLines={1} tone="inverseMuted" variant="small">
+            {conversionNote(conversion, currency)}
+          </Text>
+        ) : foreign ? (
+          <Text numberOfLines={1} tone="inverseMuted" variant="small">
+            {conversion?.unconverted ? 'No rate right now; saved as shown' : 'Getting today’s rate…'}
+          </Text>
+        ) : null}
         <Text numberOfLines={1} tone="inverse" variant="bodyMedium">
           {alert.counterparty ? `${income ? 'From' : 'To'} ${alert.counterparty}` : alert.bank}
         </Text>
@@ -158,6 +201,11 @@ export default function AlertAnswerScreen() {
       <Text numberOfLines={3} tone="faint" variant="caption">
         {alert.text}
       </Text>
+      {conversion?.original ? (
+        <Text tone="faint" variant="caption">
+          {RATES_CREDIT}
+        </Text>
+      ) : null}
     </Screen>
   );
 }

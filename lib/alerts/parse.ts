@@ -22,6 +22,8 @@ export type ParsedAlert = {
   /** False when a bank's alert gave an amount but no clear in/out word; the person picks. */
   kindSure: boolean;
   amount: number;
+  /** ISO code of the alert's money ("NGN"), or null when it doesn't say and the bank doesn't tell us. */
+  currency?: string | null;
   bank: string;
   /** Who it was from or to, when the alert says. */
   counterparty: string | null;
@@ -34,8 +36,25 @@ export type ParsedAlert = {
 
 const CURRENCY = String.raw`(?:₦|NGN|N(?=\s?\d)|\$|USD|US\$|GH₵|GHS|KES|KSh|£|GBP|€|EUR|ZAR|R(?=\s?\d))`;
 const NUMBER = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)`;
-const AMOUNT = new RegExp(`${CURRENCY}\\s?${NUMBER}`, 'gi');
-const LABELLED_AMOUNT = new RegExp(`\\b(?:amt|amount)\\s*[:\\-]?\\s*(?:${CURRENCY})?\\s?${NUMBER}`, 'i');
+const AMOUNT = new RegExp(`(${CURRENCY})\\s?${NUMBER}`, 'gi');
+const LABELLED_AMOUNT = new RegExp(`\\b(?:amt|amount)\\s*[:\\-]?\\s*(${CURRENCY})?\\s?${NUMBER}`, 'i');
+
+/** "₦", "NGN" and "N" are all naira; same idea for the other symbols banks use. */
+function currencyCode(symbol: string | undefined): string | null {
+  if (!symbol) return null;
+  const value = symbol.toUpperCase();
+  if (value === '₦' || value === 'NGN' || value === 'N') return 'NGN';
+  if (value === '$' || value === 'USD' || value === 'US$') return 'USD';
+  if (value === 'GH₵' || value === 'GHS') return 'GHS';
+  if (value === 'KES' || value === 'KSH') return 'KES';
+  if (value === '£' || value === 'GBP') return 'GBP';
+  if (value === '€' || value === 'EUR') return 'EUR';
+  if (value === 'ZAR' || value === 'R') return 'ZAR';
+  return null;
+}
+
+/** Banks that only hold naira, so an alert with no symbol from one of them is in naira. */
+const NAIRA_BANKS = /opay|kuda|palm\s?pay|moniepoint|gt\s?bank|gtworld|gtco|zenith|access|first\s?bank|fbn|\buba\b|fidelity|fcmb|sterling|union\s?bank|wema|alat|polaris|stanbic|keystone|providus|carbon|fair\s?money/i;
 const BALANCE = new RegExp(`\\b(?:avail(?:able)?\\.?\\s*)?bal(?:ance)?\\.?\\s*(?:is|:|-)?\\s*(?:${CURRENCY})?\\s?${NUMBER}`, 'i');
 
 const CREDIT = /\b(credit(?:ed)?|cr|received|receive|inflow|deposit(?:ed)?|incoming|reversal|reversed|refund(?:ed)?|sent you|paid you|transferred to you|money in|cash ?in|top[- ]?up|funded|added to your)\b/i;
@@ -77,10 +96,10 @@ function detectKind(text: string): AlertKind | null {
 }
 
 /** The money that moved: a labelled amount, else the first currency amount that isn't the balance. */
-function detectAmount(text: string): number | null {
+function detectAmount(text: string): { amount: number; currency: string | null } | null {
   const labelled = LABELLED_AMOUNT.exec(text);
   if (labelled) {
-    return toNumber(labelled[1]);
+    return { amount: toNumber(labelled[2]), currency: currencyCode(labelled[1]) };
   }
 
   AMOUNT.lastIndex = 0;
@@ -90,7 +109,7 @@ function detectAmount(text: string): number | null {
     if (/bal(?:ance)?\.?\s*(?:is|:|-)?\s*$/i.test(before)) {
       continue;
     }
-    return toNumber(match[1]);
+    return { amount: toNumber(match[2]), currency: currencyCode(match[1]) };
   }
   return null;
 }
@@ -176,13 +195,16 @@ export function parseAlert(raw: RawAlert): ParsedAlert | null {
     return null;
   }
 
-  const amount = detectAmount(text);
-  if (!amount || !Number.isFinite(amount) || amount <= 0) {
+  const found = detectAmount(text);
+  const amount = found?.amount;
+  if (!found || !amount || !Number.isFinite(amount) || amount <= 0) {
     return null;
   }
+  const sender = `${raw.sender} ${raw.title}`;
+  const currency = found.currency ?? (NAIRA_BANKS.test(sender) ? 'NGN' : null);
 
   // An amount from a bank or money app counts even when its wording is new to us; the person says which way.
-  if (!detected && !isKnownBank(`${raw.sender} ${raw.title}`)) {
+  if (!detected && !isKnownBank(sender)) {
     return null;
   }
   const kind = detected ?? 'expense';
@@ -193,12 +215,19 @@ export function parseAlert(raw: RawAlert): ParsedAlert | null {
     kind,
     kindSure: detected !== null,
     amount,
+    currency,
     bank: normalizeBank(raw.sender || raw.title),
     counterparty: detectCounterparty(text, kind),
     balance: balance ? toNumber(balance[1]) : null,
     at: new Date(raw.postedAt).toISOString(),
     text: raw.text || raw.title,
   };
+}
+
+/** The alert's currency; alerts saved before Lancer read currencies fall back to their bank. */
+export function alertCurrency(alert: Pick<ParsedAlert, 'currency' | 'bank' | 'text'>): string | null {
+  if (alert.currency !== undefined) return alert.currency;
+  return detectAmount(alert.text)?.currency ?? (NAIRA_BANKS.test(alert.bank) ? 'NGN' : null);
 }
 
 /** Banks often send an SMS and an app notification for the same money: keep one. */
