@@ -9,6 +9,7 @@ import { choosePhotoSource, pickReceiptImage } from '@/components/money/receipt-
 import { radius, space, tabularNums } from '@/constants/theme';
 import { currencySymbol } from '@/lib/currencies';
 import { getDisplayCurrency } from '@/lib/formatters';
+import { useMyBanks } from '@/lib/my-banks';
 import { bankOf, listBanks, OTHER_BANK } from '@/lib/summary';
 import { ReceiptCaptureAsset, removeUploadedReceiptAsset, uploadReceiptAsset } from '@/lib/supabase/receipts';
 import { useAppTheme } from '@/providers/app-theme-provider';
@@ -30,11 +31,16 @@ export default function TransactionCreateScreen() {
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [category, setCategory] = useState(() => categoryOptionsFor('expense', transactions)[0] ?? 'Misc');
-  const banks = useMemo(() => listBanks(transactions), [transactions]);
+  // Banks already used, plus the ones picked during setup.
+  const myBanks = useMyBanks();
+  const banks = useMemo(
+    () => [...new Set([...listBanks(transactions), ...myBanks])].sort((a, b) => a.localeCompare(b)),
+    [myBanks, transactions]
+  );
   // Start on the bank used most recently: people juggling several banks usually log a run from one.
   const [bank, setBank] = useState(() => {
     const latest = [...transactions].sort((a, b) => b.date.localeCompare(a.date))[0];
-    return latest ? bankOf(latest) : banks.length === 0 ? NEW_BANK : OTHER_BANK;
+    return latest ? bankOf(latest) : banks.length === 0 ? NEW_BANK : banks[0];
   });
   const [newBank, setNewBank] = useState('');
   const [note, setNote] = useState('');

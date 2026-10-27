@@ -1,54 +1,37 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useRouter } from 'expo-router';
-import { ComponentProps, useState } from 'react';
+import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { CurrencyPicker } from '@/components/currency/currency-picker';
-import { Button, List, Progress, Row, Screen, Text } from '@/components/ds';
+import { Button, Chip, Field, List, Progress, Row, Screen, Text } from '@/components/ds';
 import { space, tabularNums } from '@/constants/theme';
 import { deviceCurrency } from '@/lib/currencies';
+import { saveMyBanks, suggestedBanks } from '@/lib/my-banks';
 import { shouldOfferReminders } from '@/lib/notifications/native';
+import { LancerAlerts } from '@/modules/lancer-alerts';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
-import { IncomeStyle, MileageMode, SetupFocus } from '@/types/ledger';
 
-type OnboardingAnswers = {
-  currency: string;
-  incomeStyle: IncomeStyle;
-  mileageMode: MileageMode;
-  primaryFocus: SetupFocus;
-  role: string;
+type StepKey = 'currency' | 'banks' | 'alerts';
+
+const stepText: Record<StepKey, { title: string; body: string }> = {
+  currency: {
+    title: 'Which currency should Lancer show?',
+    body: 'Every total is shown in it. Alerts in another currency are converted at today’s rate.',
+  },
+  banks: {
+    title: 'Which banks and wallets do you use?',
+    body: 'Pick all that apply. Lancer shows what comes in and goes out of each one.',
+  },
+  alerts: {
+    title: 'Catch bank alerts for you?',
+    body: 'When money moves, Lancer reads your bank’s alert and asks what it was for.',
+  },
 };
 
-type IconName = ComponentProps<typeof Ionicons>['name'];
-
-type Option = { value: string; icon: IconName; detail?: string };
-
-type SetupStep = {
-  key: keyof OnboardingAnswers;
-  title: string;
-  options: Option[];
-};
-
-const steps: SetupStep[] = [
-  {
-    key: 'role',
-    title: 'What do you do?',
-    options: [
-      { value: 'Freelancer', icon: 'briefcase-outline' },
-      { value: 'Creator', icon: 'videocam-outline' },
-      { value: 'Consultant', icon: 'people-outline' },
-      { value: 'Gig worker', icon: 'bicycle-outline' },
-      { value: 'Small business', icon: 'storefront-outline' },
-    ],
-  },
-  {
-    // Rendered as a searchable list of every currency rather than option rows.
-    key: 'currency',
-    title: 'Your currency',
-    options: [],
-  },
-];
+// Bank alerts are read on the phone itself, which only Android allows.
+const steps: StepKey[] = LancerAlerts ? ['currency', 'banks', 'alerts'] : ['currency', 'banks'];
 
 export default function SetupScreen() {
   const router = useRouter();
@@ -56,14 +39,13 @@ export default function SetupScreen() {
   const { actions, isAuthenticated, isHydratingAuth, onboardingComplete, profile } = useLedger();
   const [stepIndex, setStepIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [answers, setAnswers] = useState<OnboardingAnswers>({
-    // New profiles start on USD; suggest the phone's region currency instead.
-    currency: profile.currency && profile.currency !== 'USD' ? profile.currency : deviceCurrency(),
-    role: profile.role,
-    incomeStyle: profile.incomeStyle,
-    primaryFocus: profile.primaryFocus,
-    mileageMode: profile.mileageMode,
-  });
+  // New profiles start on USD; suggest the phone's region currency instead.
+  const [currency, setCurrency] = useState(
+    profile.currency && profile.currency !== 'USD' ? profile.currency : deviceCurrency()
+  );
+  const [banks, setBanks] = useState<string[]>([]);
+  const [otherBank, setOtherBank] = useState('');
+  const [alertsOn, setAlertsOn] = useState(true);
 
   if (isHydratingAuth) {
     return null;
@@ -79,15 +61,40 @@ export default function SetupScreen() {
   }
 
   const step = steps[stepIndex];
-  const selected = answers[step.key];
   const isLastStep = stepIndex === steps.length - 1;
+  const suggestions = [...new Set([...suggestedBanks(currency), ...banks])];
 
-  const finish = async (payload: OnboardingAnswers) => {
+  const toggleBank = (name: string) =>
+    setBanks((current) => (current.includes(name) ? current.filter((bank) => bank !== name) : [...current, name]));
+
+  const addOtherBank = () => {
+    const name = otherBank.trim();
+    if (name) {
+      setBanks((current) => (current.includes(name) ? current : [...current, name]));
+      setOtherBank('');
+    }
+  };
+
+  const finish = async (turnOnAlerts: boolean) => {
     try {
       setSubmitting(true);
       // Decide before saving: the reminders prompt shows once, only if the phone hasn't decided yet.
       const offerReminders = await shouldOfferReminders();
-      await actions.completeOnboarding(payload);
+      const typed = otherBank.trim();
+      await saveMyBanks(typed ? [...banks, typed] : banks);
+      await actions.completeOnboarding({
+        currency,
+        incomeStyle: profile.incomeStyle,
+        mileageMode: profile.mileageMode,
+        primaryFocus: profile.primaryFocus,
+        role: profile.role,
+      });
+      if (turnOnAlerts) {
+        // Home underneath, so Back from Bank alerts lands somewhere.
+        router.replace('/dashboard');
+        router.push('/bank-alerts');
+        return;
+      }
       router.replace(offerReminders ? '/reminders-intro' : '/dashboard');
     } catch (error) {
       setSubmitting(false);
@@ -100,14 +107,35 @@ export default function SetupScreen() {
 
   const handleContinue = () => {
     if (isLastStep) {
-      void finish(answers);
+      void finish(step === 'alerts' && alertsOn);
       return;
     }
     setStepIndex((current) => current + 1);
   };
 
-  // Skipping keeps whatever was picked so far; untouched questions keep the profile defaults.
-  const handleSkip = () => void finish(answers);
+  // Skipping keeps whatever was picked so far.
+  const handleSkip = () => void finish(false);
+
+  const choice = (value: boolean, title: string, detail: string, icon: 'flash-outline' | 'create-outline') => {
+    const isSelected = alertsOn === value;
+    return (
+      <Row
+        accessibilityLabel={`${title}. ${detail}${isSelected ? '. Selected' : ''}`}
+        icon={icon}
+        iconTone={isSelected ? 'primary' : 'default'}
+        onPress={() => setAlertsOn(value)}
+        subtitle={detail}
+        title={title}
+        trailing={
+          <Ionicons
+            color={isSelected ? theme.tint : theme.borderStrong}
+            name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+            size={24}
+          />
+        }
+      />
+    );
+  };
 
   return (
     <Screen
@@ -123,7 +151,7 @@ export default function SetupScreen() {
             />
           ) : null}
           <Button
-            label={isLastStep ? 'Finish' : 'Continue'}
+            label={isLastStep ? (step === 'alerts' && alertsOn ? 'Turn on' : 'Finish') : 'Continue'}
             loading={submitting}
             onPress={handleContinue}
             style={styles.continue}
@@ -147,40 +175,40 @@ export default function SetupScreen() {
         <Progress value={(stepIndex + 1) / steps.length} />
       </View>
 
-      <Text accessibilityRole="header" variant="title">
-        {step.title}
-      </Text>
+      <View style={styles.heading}>
+        <Text accessibilityRole="header" variant="title">
+          {stepText[step].title}
+        </Text>
+        <Text tone="muted">{stepText[step].body}</Text>
+      </View>
 
-      {step.key === 'currency' ? (
-        <CurrencyPicker
-          onChange={(code) => setAnswers((current) => ({ ...current, currency: code }))}
-          value={answers.currency}
-        />
-      ) : (
+      {step === 'currency' ? <CurrencyPicker onChange={setCurrency} value={currency} /> : null}
+
+      {step === 'banks' ? (
+        <>
+          <View style={styles.chips}>
+            {suggestions.map((name) => (
+              <Chip key={name} label={name} onPress={() => toggleBank(name)} selected={banks.includes(name)} />
+            ))}
+          </View>
+          <Field
+            autoCapitalize="words"
+            label="Another bank or wallet"
+            onChangeText={setOtherBank}
+            onSubmitEditing={addOtherBank}
+            placeholder="Type a name and press done"
+            returnKeyType="done"
+            value={otherBank}
+          />
+        </>
+      ) : null}
+
+      {step === 'alerts' ? (
         <List>
-          {step.options.map((option) => {
-            const isSelected = selected === option.value;
-            return (
-              <Row
-                key={option.value}
-                accessibilityLabel={`${option.value}${option.detail ? `. ${option.detail}` : ''}${isSelected ? '. Selected' : ''}`}
-                onPress={() => setAnswers((current) => ({ ...current, [step.key]: option.value }))}
-                icon={option.icon}
-                iconTone={isSelected ? 'primary' : 'default'}
-                subtitle={option.detail}
-                title={option.value}
-                trailing={
-                  <Ionicons
-                    color={isSelected ? theme.tint : theme.borderStrong}
-                    name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={24}
-                  />
-                }
-              />
-            );
-          })}
+          {choice(true, 'Yes, catch them', 'From bank apps and bank SMS. You’ll allow it on the next screen.', 'flash-outline')}
+          {choice(false, 'Not now', 'Add money in and out yourself. Turn it on later in Account.', 'create-outline')}
         </List>
-      )}
+      ) : null}
     </Screen>
   );
 }
@@ -193,6 +221,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  heading: {
+    gap: space.xs,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
   },
   footer: {
     flexDirection: 'row',
