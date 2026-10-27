@@ -11,7 +11,19 @@ export type StatementInput = {
   profile: UserProfile;
   transactions: Transaction[];
   receipts: Receipt[];
+  /** One bank's statement, or every bank when null. */
+  bank?: string | null;
 };
+
+type CsvInput = Pick<StatementInput, 'year' | 'transactions' | 'bank'>;
+
+/** Only the chosen bank's transactions; all of them when no bank is chosen. */
+const forBank = (transactions: Transaction[], bank?: string | null) =>
+  bank ? transactions.filter((item) => bankOf(item) === bank) : transactions;
+
+/** "Lancer-2026-OPay-statement.pdf"; safe for every file system. */
+const fileLabel = (year: number, bank?: string | null) =>
+  bank ? `Lancer-${year}-${bank.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '')}` : `Lancer-${year}`;
 
 const inYear = (date: string, year: number) => new Date(date).getFullYear() === year;
 const byDate = <T extends { date: string }>(a: T, b: T) => new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -39,13 +51,22 @@ function table(headers: string[], rows: (string | number)[][], numericFrom = hea
 
 /** A printable statement of the year's money in and money out, as HTML (rendered to PDF). */
 export function buildStatementHtml(input: StatementInput) {
-  const { year, profile } = input;
+  const { year, profile, bank } = input;
   const now = new Date(year, 11, 31);
-  const transactions = input.transactions.filter((item) => inYear(item.date, year)).sort(byDate);
-  const totals = getTotals(input.transactions, 'year', now);
-  const moneyIn = getCategoryTotals(input.transactions, 'income', 'year', now);
-  const moneyOut = getCategoryTotals(input.transactions, 'expense', 'year', now);
+  const all = forBank(input.transactions, bank);
+  const transactions = all.filter((item) => inYear(item.date, year)).sort(byDate);
+  const totals = getTotals(all, 'year', now);
+  const moneyIn = getCategoryTotals(all, 'income', 'year', now);
+  const moneyOut = getCategoryTotals(all, 'expense', 'year', now);
   const receipts = input.receipts.filter((item) => inYear(item.date, year)).length;
+  const byBank = bank
+    ? ''
+    : `<h2>By bank</h2>
+  ${table(
+    ['Bank', 'In', 'Out', 'Left over'],
+    getBankTotals(all, 'year', now).map((item) => [item.bank, money(item.income), money(item.expenses), money(item.net)]),
+    1
+  )}`;
   const preparedFor = [profile.name, profile.role].filter((part) => part?.trim()).join(' · ');
 
   return `<!doctype html><html><head><meta charset="utf-8" />
@@ -61,7 +82,7 @@ export function buildStatementHtml(input: StatementInput) {
   .summary td:first-child { width: 60%; }
   .total td { font-weight: 600; border-top: 1px solid #999; }
 </style></head><body>
-  <h1>Lancer ${year} statement</h1>
+  <h1>Lancer ${year} statement${bank ? ` · ${escapeHtml(bank)}` : ''}</h1>
   <div class="muted">${escapeHtml(preparedFor || 'Prepared from Lancer records')} · Generated ${escapeHtml(formatFullDate(new Date().toISOString()))}</div>
 
   <h2>Summary</h2>
@@ -71,12 +92,7 @@ export function buildStatementHtml(input: StatementInput) {
     <tr class="total"><td>Left over</td><td class="num">${money(totals.net)}</td></tr>
   </tbody></table>
 
-  <h2>By bank</h2>
-  ${table(
-    ['Bank', 'In', 'Out', 'Left over'],
-    getBankTotals(input.transactions, 'year', now).map((item) => [item.bank, money(item.income), money(item.expenses), money(item.net)]),
-    1
-  )}
+  ${byBank}
 
   <h2>Money in by category</h2>
   ${table(['Category', 'Total'], moneyIn.map((item) => [item.category, money(item.total)]), 1)}
@@ -98,15 +114,15 @@ export function buildStatementHtml(input: StatementInput) {
     5
   )}
 
-  <h2>Receipts</h2>
-  <div>${receipts} receipts stored for ${year}.</div>
+  ${bank ? '' : `<h2>Receipts</h2>
+  <div>${receipts} receipts stored for ${year}.</div>`}
 </body></html>`;
 }
 
 /** Every transaction for the year, one row each, for Excel, Numbers or Google Sheets. */
-export function buildTransactionsCsv(input: Pick<StatementInput, 'year' | 'transactions'>) {
+export function buildTransactionsCsv(input: CsvInput) {
   const header = ['date', 'time', 'type', 'merchant', 'category', 'amount', 'bank', 'note'];
-  const rows = input.transactions
+  const rows = forBank(input.transactions, input.bank)
     .filter((item) => inYear(item.date, input.year))
     .sort(byDate)
     .map((item) =>
@@ -137,21 +153,21 @@ async function freshFile(name: string) {
 
 export async function shareStatementPdf(input: StatementInput) {
   const { uri } = await Print.printToFileAsync({ html: buildStatementHtml(input) });
-  const named = await freshFile(`Lancer-${input.year}-statement.pdf`);
+  const named = await freshFile(`${fileLabel(input.year, input.bank)}-statement.pdf`);
   await new File(uri).move(named);
   await Sharing.shareAsync(named.uri, {
-    dialogTitle: `Lancer ${input.year} statement`,
+    dialogTitle: `Lancer ${input.year} statement${input.bank ? ` · ${input.bank}` : ''}`,
     mimeType: 'application/pdf',
     UTI: 'com.adobe.pdf',
   });
 }
 
-export async function shareTransactionsCsv(input: Pick<StatementInput, 'year' | 'transactions'>) {
-  const file = await freshFile(`Lancer-${input.year}-transactions.csv`);
+export async function shareTransactionsCsv(input: CsvInput) {
+  const file = await freshFile(`${fileLabel(input.year, input.bank)}-transactions.csv`);
   file.create();
   await file.write(buildTransactionsCsv(input));
   await Sharing.shareAsync(file.uri, {
-    dialogTitle: `Lancer ${input.year} transactions`,
+    dialogTitle: `Lancer ${input.year} transactions${input.bank ? ` · ${input.bank}` : ''}`,
     mimeType: 'text/csv',
     UTI: 'public.comma-separated-values-text',
   });
