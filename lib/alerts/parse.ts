@@ -230,9 +230,13 @@ export function alertCurrency(alert: Pick<ParsedAlert, 'currency' | 'bank' | 'te
   return detectAmount(alert.text)?.currency ?? (NAIRA_BANKS.test(alert.bank) ? 'NGN' : null);
 }
 
-/** Banks often send an SMS and an app notification for the same money: keep one. */
+/**
+ * Banks often send an SMS and an app notification for the same money: keep one. Only within one bank,
+ * so the same amount moving through two banks at once stays two transactions.
+ */
 export function isSameMovement(a: ParsedAlert, b: ParsedAlert) {
   return (
+    a.bank === b.bank &&
     a.kind === b.kind &&
     Math.abs(a.amount - b.amount) < 0.005 &&
     Math.abs(new Date(a.at).getTime() - new Date(b.at).getTime()) <= 3 * 60 * 1000
