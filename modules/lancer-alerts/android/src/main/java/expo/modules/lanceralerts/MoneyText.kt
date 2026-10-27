@@ -41,6 +41,28 @@ object MoneyText {
   /** The amount as written ("₦5,000.00"), for the prompt's title. */
   fun amount(text: String): String? = AMOUNT.find(text)?.value ?: LABELLED.find(text)?.groupValues?.get(1)
 
+  private val LABELLED_PARTY =
+    Regex("\\b(?:desc(?:ription)?|des|narration|remarks?|details?)\\s*[:\\-]\\s*(.+?)(?=\\s*(?:\\bavail|\\bavl|\\bbal|\\bdate|\\btime\\b|\\bamt|\\bamount|\\bref|\\n|$))", RegexOption.IGNORE_CASE)
+  private const val PARTY_END =
+    "(?=\\s*(?:\\bon\\b|\\bat\\b|\\bvia\\b|\\bbal|\\bavail|\\bdate|\\bwith\\b|\\bref|\\bhas\\b|\\bwas\\b|\\bis\\b|\\bsuccess|[.,;|\\n]|$))"
+  private val FROM_PARTY = Regex("\\b(?:from|by)\\s+([A-Za-z0-9][A-Za-z0-9 .'&/-]{1,48}?)$PARTY_END", RegexOption.IGNORE_CASE)
+  private val TO_PARTY = Regex("\\bto\\s+([A-Za-z0-9][A-Za-z0-9 .'&/-]{1,48}?)$PARTY_END", RegexOption.IGNORE_CASE)
+  private val NOT_A_NAME = Regex("^(your|you|the|a|an)\\b", RegexOption.IGNORE_CASE)
+
+  private fun clean(value: String) = value.replace(Regex("\\s+"), " ").trim(' ', ':', ',', '.', '-')
+
+  /** Who sent it or who it went to ("from JOHN DOE", "to Jane", "Narration: ..."), same rules as the app. */
+  fun counterparty(text: String, incoming: Boolean): String? {
+    val labelled = LABELLED_PARTY.find(text)?.groupValues?.get(1)
+    val named = (if (incoming) FROM_PARTY else TO_PARTY).find(text)?.groupValues?.get(1)
+    val pick = named ?: labelled ?: return null
+    val value = clean(pick)
+    if (value.isEmpty() || NOT_A_NAME.containsMatchIn(value) || value.all { it.isDigit() }) {
+      return if (labelled != null && pick != labelled) clean(labelled).ifEmpty { null } else null
+    }
+    return value
+  }
+
   /** In, out, or null when the alert doesn't say. */
   fun direction(text: String): Boolean? {
     val explicitCredit = Regex("\\b(credit(?:ed)?|cr)\\b", RegexOption.IGNORE_CASE).find(text)?.range?.first

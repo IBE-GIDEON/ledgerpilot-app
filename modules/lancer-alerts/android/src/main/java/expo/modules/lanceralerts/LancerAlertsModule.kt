@@ -65,6 +65,7 @@ class LancerAlertsModule : Module() {
     }
 
     Function("cancelPrompt") { id: String ->
+      AlertStore.close(context, id)
       PromptNotifier.cancel(context, id)
     }
   }

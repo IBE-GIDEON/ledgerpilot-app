@@ -9,10 +9,13 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * The "What was this for?" notification. It pops up, has a reply box, and stays put until answered:
- * there is no dismiss action, and Android keeps it pinned where the system allows.
+ * The "What was this for?" notification. It pops up with who and when, has a reply box, and stays
+ * until answered: it's pinned where Android allows, and it comes back if swiped away.
  */
 object PromptNotifier {
   const val CHANNEL_ID = "lancer-bank-alerts"
@@ -20,7 +23,14 @@ object PromptNotifier {
   const val KEY_ANSWER = "answer"
   const val EXTRA_ALERT_ID = "alertId"
 
-  fun show(context: Context, id: String, sender: String, text: String) {
+  const val EXTRA_SENDER = "sender"
+  const val EXTRA_TEXT = "text"
+  const val EXTRA_POSTED_AT = "postedAt"
+  const val ACTION_REPLY = "expo.modules.lanceralerts.REPLY"
+  const val ACTION_DISMISSED = "expo.modules.lanceralerts.DISMISSED"
+  private const val QUESTION = "What was this for?"
+
+  fun show(context: Context, id: String, sender: String, text: String, postedAt: Long) {
     val manager = NotificationManagerCompat.from(context)
     if (!manager.areNotificationsEnabled()) return
     ensureChannel(context)
@@ -32,15 +42,41 @@ object PromptNotifier {
       false -> "$amount went out · $sender"
       null -> "$amount moved · $sender"
     }
-    val question = if (direction == true) "Who sent this, and what for?" else "What was this for?"
+    // Who it was from or to comes from the alert itself; the person only says what it was for.
+    val party = direction?.let { MoneyText.counterparty(text, it) }
+    val who = when {
+      party == null -> null
+      direction == true -> "From $party"
+      else -> "To $party"
+    }
+    val time = SimpleDateFormat("EEE, MMM d · h:mm a", Locale.getDefault()).format(Date(postedAt))
+    val details = listOfNotNull(who, time).joinToString(" · ")
+    val body = "$details\n$QUESTION"
+
+    // Swiping it away doesn't skip the question: it comes straight back until answered.
+    val dismissIntent = Intent(context, ReplyReceiver::class.java)
+      .setAction(ACTION_DISMISSED)
+      .putExtra(EXTRA_ALERT_ID, id)
+      .putExtra(EXTRA_SENDER, sender)
+      .putExtra(EXTRA_TEXT, text)
+      .putExtra(EXTRA_POSTED_AT, postedAt)
+    val dismissPending = PendingIntent.getBroadcast(
+      context,
+      id.hashCode() + 2,
+      dismissIntent,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
 
     val replyIntent = Intent(context, ReplyReceiver::class.java)
-      .setAction("expo.modules.lanceralerts.REPLY")
+      .setAction(ACTION_REPLY)
       .putExtra(EXTRA_ALERT_ID, id)
+      .putExtra(EXTRA_SENDER, sender)
+      .putExtra(EXTRA_TEXT, text)
+      .putExtra(EXTRA_POSTED_AT, postedAt)
     val replyFlags =
       PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
     val replyPending = PendingIntent.getBroadcast(context, id.hashCode(), replyIntent, replyFlags)
-    val remoteInput = RemoteInput.Builder(KEY_ANSWER).setLabel(question).build()
+    val remoteInput = RemoteInput.Builder(KEY_ANSWER).setLabel(QUESTION).build()
     val reply = NotificationCompat.Action.Builder(0, "Answer", replyPending)
       .addRemoteInput(remoteInput)
       .setAllowGeneratedReplies(false)
@@ -49,14 +85,17 @@ object PromptNotifier {
     val notification = NotificationCompat.Builder(context, CHANNEL_ID)
       .setSmallIcon(context.applicationInfo.icon)
       .setContentTitle(title)
-      .setContentText(question)
-      .setStyle(NotificationCompat.BigTextStyle().bigText(question))
+      .setContentText(details)
+      .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+      .setWhen(postedAt)
+      .setShowWhen(true)
       .setPriority(NotificationCompat.PRIORITY_HIGH)
       .setCategory(NotificationCompat.CATEGORY_REMINDER)
       .setOngoing(true)
       .setAutoCancel(false)
       .setOnlyAlertOnce(true)
       .setContentIntent(openAppIntent(context, id))
+      .setDeleteIntent(dismissPending)
       .addAction(reply)
       .build()
 

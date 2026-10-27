@@ -131,10 +131,10 @@ export default function AlertAnswerScreen() {
       <Field
         autoCapitalize="sentences"
         autoFocus
-        label={income ? 'Who sent this, and what for?' : 'What was this for?'}
+        label="What was this for?"
         onChangeText={setAnswer}
         onSubmitEditing={() => void save()}
-        placeholder={income ? 'Client payment for logo design' : 'Fuel, rent, lunch with client…'}
+        placeholder={income ? 'Logo design, rent refund, gift…' : 'Fuel, rent, lunch with client…'}
         returnKeyType="done"
         value={answer}
       />

@@ -14,6 +14,7 @@ object AlertStore {
   private const val KEY_ANSWERS = "answers"
   private const val KEY_FINGERPRINTS = "seen"
   private const val KEY_LOG = "log"
+  private const val KEY_CLOSED = "closed"
   private const val KEY_CONNECTED_AT = "connectedAt"
   private const val KEY_LAST_SEEN_AT = "lastSeenAt"
   private const val MAX_ALERTS = 200
@@ -77,7 +78,26 @@ object AlertStore {
     val answers = JSONObject(prefs.getString(KEY_ANSWERS, "{}"))
     answers.put(id, answer)
     prefs.edit().putString(KEY_ANSWERS, answers.toString()).apply()
+    close(context, id)
     listener?.invoke()
+  }
+
+  /** The question for this alert is done (answered, or settled in the app), so it never comes back. */
+  @Synchronized
+  fun close(context: Context, id: String) {
+    val prefs = prefs(context)
+    val closed = JSONArray(prefs.getString(KEY_CLOSED, "[]"))
+    closed.put(id)
+    prefs.edit().putString(KEY_CLOSED, trimmed(closed, MAX_FINGERPRINTS).toString()).apply()
+  }
+
+  @Synchronized
+  fun isClosed(context: Context, id: String): Boolean {
+    val closed = JSONArray(prefs(context).getString(KEY_CLOSED, "[]"))
+    for (index in 0 until closed.length()) {
+      if (closed.getString(index) == id) return true
+    }
+    return false
   }
 
   /** Everything waiting, as {"alerts": [...], "answers": {...}}; clears both. */

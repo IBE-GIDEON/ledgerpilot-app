@@ -59,7 +59,7 @@ class AlertListenerService : NotificationListenerService() {
       .put("text", text)
       .put("postedAt", sbn.postTime)
     AlertStore.add(this, alert)
-    PromptNotifier.show(this, id, sender, combined)
+    PromptNotifier.show(this, id, sender, combined, sbn.postTime)
   }
 
   /** Big text, else the plain line, plus inbox lines and the newest chat-style message some apps use. */
