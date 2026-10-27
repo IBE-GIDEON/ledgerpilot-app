@@ -12,26 +12,25 @@ export default function CurrencyScreen() {
   const { actions, profile } = useLedger();
   const [value, setValue] = useState(profile.currency);
 
-  const choose = async (code: string) => {
-    const previous = value;
+  // The new currency shows everywhere at once; saving finishes in the background.
+  const choose = (code: string) => {
     setValue(code);
-    try {
-      await actions.updateProfile({
+    actions
+      .updateProfile({
         currency: code,
         homeState: profile.homeState,
         name: profile.name,
         role: profile.role,
+      })
+      .catch((error: unknown) => {
+        Alert.alert('Currency not saved', error instanceof Error ? error.message : 'Try again in a moment.');
       });
-      router.back();
-    } catch (error) {
-      setValue(previous);
-      Alert.alert('Currency not saved', error instanceof Error ? error.message : 'Try again in a moment.');
-    }
+    router.back();
   };
 
   return (
     <Screen header>
-      <CurrencyPicker onChange={(code) => void choose(code)} value={value} />
+      <CurrencyPicker onChange={choose} value={value} />
     </Screen>
   );
 }

@@ -35,7 +35,8 @@ import {
   mapTripRowToMileageTrip,
 } from '@/lib/backend/mappers';
 import { forgetAccount, rememberAccount } from '@/lib/auth/recent-accounts';
-import { setDisplayCurrency } from '@/lib/formatters';
+import { DisplayCurrencyContext } from '@/lib/currency-context';
+import { getDisplayCurrency, setDisplayCurrency } from '@/lib/formatters';
 import { env, usingSupabaseBackend } from '@/lib/config/env';
 import {
   defaultBilling,
@@ -1316,8 +1317,17 @@ export function LedgerProvider({ children }: PropsWithChildren) {
         role: payload.role.trim() || state.profile.role,
       };
 
+      const previousPayload = {
+        currency: state.profile.currency,
+        homeState: state.profile.homeState,
+        name: state.profile.name,
+        role: state.profile.role,
+      };
+
+      // Show the change everywhere at once; the server catches up after.
+      dispatch({ type: 'updateProfile', payload: nextPayload });
+
       if (!supabase || !usingSupabaseBackend || !state.isAuthenticated) {
-        dispatch({ type: 'updateProfile', payload: nextPayload });
         return;
       }
 
@@ -1325,21 +1335,25 @@ export function LedgerProvider({ children }: PropsWithChildren) {
       const user = data.user;
 
       if (error || !user) {
-        dispatch({ type: 'updateProfile', payload: nextPayload });
         return;
       }
 
-      const { error: metadataError } = await supabase.auth.updateUser({
-        data: {
-          full_name: nextPayload.name,
-        },
-      });
+      try {
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: {
+            full_name: nextPayload.name,
+          },
+        });
 
-      if (metadataError) {
-        throw new Error(metadataError.message);
+        if (metadataError) {
+          throw new Error(metadataError.message);
+        }
+
+        await writeProfile(supabase, user.id, buildEditableProfileUpdate(nextPayload));
+      } catch (saveError) {
+        dispatch({ type: 'updateProfile', payload: previousPayload });
+        throw saveError;
       }
-
-      await writeProfile(supabase, user.id, buildEditableProfileUpdate(nextPayload));
 
       await hydrateFromSessionUser(user);
     },
@@ -1795,7 +1809,11 @@ export function LedgerProvider({ children }: PropsWithChildren) {
     ]
   );
 
-  return <LedgerContext.Provider value={value}>{children}</LedgerContext.Provider>;
+  return (
+    <LedgerContext.Provider value={value}>
+      <DisplayCurrencyContext.Provider value={getDisplayCurrency()}>{children}</DisplayCurrencyContext.Provider>
+    </LedgerContext.Provider>
+  );
 }
 
 export function useLedger() {

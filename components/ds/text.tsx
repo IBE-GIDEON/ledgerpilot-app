@@ -1,6 +1,7 @@
 import { StyleSheet, Text as RNText, TextProps } from 'react-native';
 
 import { tabularNums, type as typeScale } from '@/constants/theme';
+import { useDisplayCurrency } from '@/lib/currency-context';
 import { formatCurrency } from '@/lib/formatters';
 import { useAppTheme } from '@/providers/app-theme-provider';
 
@@ -57,6 +58,7 @@ type AmountProps = Omit<AppTextProps, 'children'> & {
 
 /** Money in serif with tabular digits; shrinks instead of overflowing. */
 export function Amount({ value, signed = false, cents, size = 'heading', tone, style, ...rest }: AmountProps) {
+  useDisplayCurrency();
   const showCents = cents ?? Math.abs(value) < 10000;
   const formatted = formatCurrency(Math.abs(value), showCents ? 2 : 0);
   const prefix = signed ? (value > 0 ? '+' : value < 0 ? '−' : '') : value < 0 ? '−' : '';

@@ -5,6 +5,7 @@ import { Amount, Text } from '@/components/ds';
 import { ListCell } from '@/components/money/list-cell';
 import { categoryColorIndex } from '@/components/money/money-utils';
 import { dataColors, space } from '@/constants/theme';
+import { useDisplayCurrency } from '@/lib/currency-context';
 import { formatCurrency, formatDayTime } from '@/lib/formatters';
 import { bankOf } from '@/lib/summary';
 import { useAppTheme } from '@/providers/app-theme-provider';
@@ -27,6 +28,7 @@ export const TransactionRow = memo(function TransactionRow({
   onPress,
 }: TransactionRowProps) {
   const { theme } = useAppTheme();
+  useDisplayCurrency();
   const date = formatDayTime(transaction.date);
   const bank = bankOf(transaction);
   const category = transaction.category || 'Uncategorized';

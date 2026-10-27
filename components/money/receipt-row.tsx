@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Amount, Badge, Row } from '@/components/ds';
 import { ListCell } from '@/components/money/list-cell';
 import { space } from '@/constants/theme';
+import { useDisplayCurrency } from '@/lib/currency-context';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { Receipt } from '@/types/ledger';
 
@@ -16,6 +17,7 @@ type ReceiptRowProps = {
 };
 
 export const ReceiptRow = memo(function ReceiptRow({ receipt, first, last, onPress, onLongPress }: ReceiptRowProps) {
+  useDisplayCurrency();
   const verified = receipt.status === 'Verified';
   const date = formatDate(receipt.date);
 
