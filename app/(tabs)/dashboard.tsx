@@ -41,6 +41,8 @@ export default function HomeScreen() {
   );
 
   const openBank = (bank: string) => router.push({ pathname: '/activity', params: { bank } });
+  const openSide = (kind: 'in' | 'out') =>
+    router.push({ pathname: '/activity', params: { kind, t: String(Date.now()) } });
 
   return (
     <Screen tab>
@@ -89,10 +91,10 @@ export default function HomeScreen() {
 
       {transactions.length > 0 ? (
         <View style={styles.row}>
-          <Tile caption={formatCompactCurrency(metrics.month.income)} onPress={() => router.push('/breakdown')} title="In">
+          <Tile caption={formatCompactCurrency(metrics.month.income)} onPress={() => openSide('in')} title="In">
             <SpendBars segments={earning} />
           </Tile>
-          <Tile caption={formatCompactCurrency(metrics.month.expenses)} onPress={() => router.push('/breakdown')} title="Out">
+          <Tile caption={formatCompactCurrency(metrics.month.expenses)} onPress={() => openSide('out')} title="Out">
             <SpendBars segments={spending} />
           </Tile>
         </View>

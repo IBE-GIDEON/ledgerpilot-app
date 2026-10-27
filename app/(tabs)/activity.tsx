@@ -64,7 +64,7 @@ const monthLabel = (date: string) =>
 /** One job: find a transaction or receipt, across every bank or one at a time. Details are a row tap away. */
 export default function MoneyScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ segment?: string; bank?: string }>();
+  const params = useLocalSearchParams<{ segment?: string; bank?: string; kind?: string; t?: string }>();
   const { theme } = useAppTheme();
   const gutter = useGutter();
   const insets = useManualInsets({ tab: true });
@@ -95,6 +95,19 @@ export default function MoneyScreen() {
     setLinkedBank(params.bank);
     setBank(params.bank ?? null);
     setSegment('Transactions');
+  }
+
+  // Home's In and Out tiles open just that side with /activity?kind=in|out (t makes each tap count).
+  const linkKey = params.kind ? `${params.kind}:${params.t ?? ''}` : undefined;
+  const [linkedKind, setLinkedKind] = useState(linkKey);
+  if (linkKey !== linkedKind) {
+    setLinkedKind(linkKey);
+    if (params.kind === 'in' || params.kind === 'out') {
+      setFilter(params.kind === 'in' ? 'In' : 'Out');
+      setBank(null);
+      setQuery('');
+      setSegment('Transactions');
+    }
   }
 
   const receiptsById = useMemo(() => new Map(receipts.map((receipt) => [receipt.id, receipt])), [receipts]);
@@ -305,6 +318,13 @@ export default function MoneyScreen() {
         icon="swap-vertical-outline"
         photo={photos.empty}
         title="No transactions"
+      />
+    ) : (filter === 'In' || filter === 'Out') && !bank && !query ? (
+      <EmptyState
+        action={{ label: 'Add', onPress: () => router.push('/transaction-create') }}
+        body={filter === 'In' ? 'Nothing has come in yet.' : 'Nothing has gone out yet.'}
+        icon={filter === 'In' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
+        title={filter === 'In' ? 'No money in' : 'No money out'}
       />
     ) : (
       <EmptyState
