@@ -260,7 +260,7 @@ export default function UpgradeScreen() {
           chevron
           icon="card-outline"
           onPress={() => router.push('/billing-setup')}
-          title="Payment method"
+          title="Payment & auto-pay"
         />
         <Row
           icon="refresh-outline"

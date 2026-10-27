@@ -125,7 +125,7 @@ function AppNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="search" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="setup" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="reminders-intro" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
-        <Stack.Screen name="billing-setup" options={{ title: 'Payment method' }} />
+        <Stack.Screen name="billing-setup" options={{ title: 'Payment & auto-pay' }} />
         <Stack.Screen name="upgrade" options={{ title: 'Plans', presentation: modal }} />
         <Stack.Screen name="transaction-create" options={{ title: 'New transaction', presentation: modal }} />
         <Stack.Screen name="transaction-detail" options={{ title: 'Transaction' }} />

@@ -11,12 +11,6 @@ import { featureFlags } from '@/lib/config/env';
 import { useAppTheme } from '@/providers/app-theme-provider';
 import { useLedger } from '@/providers/ledger-provider';
 
-const paymentLabels = {
-  ready: 'On file',
-  pending: 'Pending',
-  missing: 'Not added',
-} as const;
-
 /** One job: a plain index of your profile, plan and account settings. */
 export default function AccountScreen() {
   const router = useRouter();
@@ -87,8 +81,7 @@ export default function AccountScreen() {
           chevron
           icon="card-outline"
           onPress={() => router.push('/billing-setup')}
-          title="Payment method"
-          value={paymentLabels[access.paymentMethodStatus]}
+          title="Payment & auto-pay"
         />
         {featureFlags.bankSync ? (
           <Row chevron icon="link-outline" onPress={() => router.push('/connections')} title="Connected accounts" />

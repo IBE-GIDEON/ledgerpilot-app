@@ -1,126 +1,127 @@
-import { useStripe } from '@stripe/stripe-react-native';
-import { Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, AppState, Linking, Platform } from 'react-native';
 
-import { Button, Card, Screen, Text } from '@/components/ds';
-import { LANCER_PLAN, plans } from '@/lib/billing/features';
-import { env } from '@/lib/config/env';
-import { finalizeStripeSetupSession, prepareStripeSetupSession } from '@/lib/supabase/billing';
+import { Button, Card, List, Row, Screen, SwitchRow, Text } from '@/components/ds';
+import { plans } from '@/lib/billing/features';
+import { getStoreSubscription, StoreSubscription, storeSubscriptionsUrl } from '@/lib/billing/revenuecat';
+import { formatFullDate } from '@/lib/formatters';
 import { useLedger } from '@/providers/ledger-provider';
 
-/** One job: save a card for the Lancer plan. Nothing is charged today. */
-export default function BillingSetupScreen() {
+const STORE = Platform.OS === 'ios' ? 'the App Store' : 'Google Play';
+const STORE_NAME = Platform.OS === 'ios' ? 'App Store' : 'Google Play';
+
+/**
+ * One job: see how Lancer is paid for and switch auto-pay. The card itself is saved and charged by
+ * Google Play (or the App Store), which remembers it; Lancer never sees card details.
+ */
+export default function PaymentScreen() {
   const router = useRouter();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { access, actions, isAuthenticated, isHydratingAuth, profile } = useLedger();
-  const stripeReady = Boolean(env.stripePublishableKey);
-
-  const selectedPlan = LANCER_PLAN;
-  const [savingCard, setSavingCard] = useState(false);
-
-  if (isHydratingAuth) {
-    return null;
-  }
-
-  if (!isAuthenticated) {
-    return <Redirect href="/welcome" />;
-  }
-
+  const { access, profile } = useLedger();
+  const [subscription, setSubscription] = useState<StoreSubscription | null>(null);
+  const [loading, setLoading] = useState(true);
   const plan = plans[0];
-  const cardSaved = access.paymentMethodStatus === 'ready';
 
-  const handleSaveCard = async () => {
-    if (!stripeReady) {
-      Alert.alert(
-        'Card setup isn’t available yet',
-        'Payments aren’t connected in this build. Once Stripe is set up, you can add a card here.'
-      );
+  const refresh = useCallback(() => {
+    if (!profile.id) {
+      setLoading(false);
       return;
     }
+    getStoreSubscription({ appUserID: profile.id, displayName: profile.name })
+      .then(setSubscription)
+      .catch(() => setSubscription(null))
+      .finally(() => setLoading(false));
+  }, [profile.id, profile.name]);
 
-    try {
-      setSavingCard(true);
-      const session = await prepareStripeSetupSession(selectedPlan);
-      const initResult = await initPaymentSheet({
-        allowsDelayedPaymentMethods: false,
-        customerEphemeralKeySecret: session.customerEphemeralKeySecret,
-        customerId: session.customerId,
-        defaultBillingDetails: {
-          name: profile.name,
-        },
-        merchantDisplayName: session.merchantDisplayName,
-        setupIntentClientSecret: session.setupIntentClientSecret,
-      });
+  // Fresh on open, and again when coming back from the store's page.
+  useFocusEffect(refresh);
+  useEffect(() => {
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
+    return () => listener.remove();
+  }, [refresh]);
 
-      if (initResult.error) {
-        throw new Error(initResult.error.message);
-      }
+  const ready = subscription !== null;
+  const active = Boolean(subscription?.active);
+  const willRenew = Boolean(subscription?.willRenew);
+  const until = subscription?.expiresAt ? formatFullDate(subscription.expiresAt) : null;
+  const manageUrl = subscription?.manageUrl ?? storeSubscriptionsUrl();
 
-      const presentResult = await presentPaymentSheet();
+  const openStore = () => void Linking.openURL(manageUrl);
 
-      if (presentResult.error) {
-        if (presentResult.error.code === 'Canceled') {
-          return;
-        }
-
-        throw new Error(presentResult.error.message);
-      }
-
-      const finalized = await finalizeStripeSetupSession({
-        plan: selectedPlan,
-        setupIntentClientSecret: session.setupIntentClientSecret,
-      });
-
-      await actions.completeBillingSetup({
-        plan: selectedPlan,
-        paymentMethodStatus: 'ready',
-        withCard: true,
-      });
-
-      router.back();
-
-      Alert.alert(
-        'Card saved',
-        finalized.last4
-          ? `${finalized.brand ?? 'Card'} ending in ${finalized.last4} is saved for your Lancer plan.`
-          : 'Your card is saved for your Lancer plan.'
-      );
-    } catch (error) {
-      Alert.alert(
-        'Card not saved',
-        error instanceof Error ? error.message : 'We couldn’t save your card right now. Try again in a moment.'
-      );
-    } finally {
-      setSavingCard(false);
-    }
+  const toggleAutoPay = (next: boolean) => {
+    Alert.alert(
+      next ? 'Turn auto-pay on' : 'Turn auto-pay off',
+      next
+        ? `${STORE_NAME} will open. Tap Resubscribe and your saved payment is charged ${plan.monthly} each month.`
+        : `${STORE_NAME} will open. Tap Cancel subscription.${until ? ` You keep Lancer until ${until}, and nothing more is charged.` : ''}`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        { text: `Open ${STORE_NAME}`, onPress: openStore },
+      ]
+    );
   };
+
+  const status = loading
+    ? 'Checking…'
+    : !ready
+      ? 'Payments open once Lancer is in the store'
+      : active
+        ? willRenew
+          ? `Renews ${until ?? 'monthly'}`
+          : `Auto-pay off · ends ${until ?? 'soon'}`
+        : access.subscriptionStatus === 'trialing'
+          ? `Free trial · ${access.trialDaysRemaining} ${access.trialDaysRemaining === 1 ? 'day' : 'days'} left`
+          : 'Not subscribed';
 
   return (
     <Screen
       header
       footer={
-        <Button
-          icon="card-outline"
-          label={cardSaved ? 'Replace card' : 'Add card'}
-          loading={savingCard}
-          onPress={() => void handleSaveCard()}
-        />
+        active ? undefined : (
+          <Button icon="ribbon-outline" label={`Subscribe · ${plan.monthly}/month`} onPress={() => router.push('/upgrade')} />
+        )
       }>
       <Card tone="primary">
         <Text tone="inverseMuted" variant="small">
-          {cardSaved ? 'Card on file' : 'No card on file'}
+          Lancer
         </Text>
         <Text tone="inverse" variant="title">
-          {plan.monthly}/mo
+          {plan.monthly}/month
         </Text>
         <Text tone="inverseMuted" variant="small">
-          No charge today
+          {status}
         </Text>
       </Card>
 
+      <List>
+        <Row
+          chevron={ready}
+          icon="card-outline"
+          onPress={ready ? openStore : undefined}
+          subtitle={active ? `Saved in ${STORE_NAME}. Tap to change it.` : `Saved in ${STORE_NAME} when you subscribe.`}
+          title="Payment method"
+          value={STORE_NAME}
+        />
+        <SwitchRow
+          disabled={!active}
+          icon="repeat-outline"
+          onValueChange={toggleAutoPay}
+          subtitle={
+            active
+              ? willRenew
+                ? `Charged ${plan.monthly} each month until you turn it off.`
+                : 'Off. Lancer stops when this month ends.'
+              : 'Comes on when you subscribe.'
+          }
+          title="Auto-pay"
+          value={willRenew}
+        />
+      </List>
+
       <Text align="center" tone="faint" variant="caption">
-        Secured by Stripe. We remind you before any charge.
+        {`Your card is kept safely by ${STORE}, not by Lancer. Turn auto-pay off any time; you keep Lancer until the month you paid for ends.`}
       </Text>
     </Screen>
   );

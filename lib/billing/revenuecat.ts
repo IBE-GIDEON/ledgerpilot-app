@@ -205,6 +205,54 @@ export async function restoreRevenueCatPurchases(
   return runtime.default.restorePurchases();
 }
 
+export type StoreSubscription = {
+  active: boolean;
+  /** Auto-pay: the store charges the saved payment method again at the end of the period. */
+  willRenew: boolean;
+  /** When the current period ends (renews, or stops if auto-pay is off). */
+  expiresAt: string | null;
+  productId: string | null;
+  /** The store's own page for this subscription: payment method, auto-pay, cancel. */
+  manageUrl: string;
+};
+
+const PACKAGE_NAME = 'com.ibegideon.lancer';
+
+/** The store page where people change their card or switch auto-pay; payment details never pass through Lancer. */
+export function storeSubscriptionsUrl(productId?: string | null) {
+  if (Platform.OS === 'ios') {
+    return 'https://apps.apple.com/account/subscriptions';
+  }
+  const sku = productId ? `&sku=${encodeURIComponent(productId.split(':')[0])}` : '';
+  return `https://play.google.com/store/account/subscriptions?package=${PACKAGE_NAME}${sku}`;
+}
+
+/** Where the Lancer subscription stands in Google Play or the App Store; null when payments aren't set up in this build. */
+export async function getStoreSubscription(
+  params: Parameters<typeof ensureRevenueCatConfigured>[0]
+): Promise<StoreSubscription | null> {
+  const ready = await ensureRevenueCatConfigured(params);
+  const runtime = await loadRevenueCatRuntime();
+  if (!ready || !runtime) {
+    return null;
+  }
+
+  const info = await runtime.default.getCustomerInfo();
+  const entitlements = Object.values(info.entitlements.all);
+  const entitlement =
+    (env.revenueCatEntitlementId ? info.entitlements.all[env.revenueCatEntitlementId] : undefined) ??
+    entitlements.find((item) => item.isActive) ??
+    entitlements[0];
+
+  return {
+    active: Boolean(entitlement?.isActive),
+    willRenew: Boolean(entitlement?.isActive && entitlement.willRenew),
+    expiresAt: entitlement?.expirationDate ?? null,
+    productId: entitlement?.productIdentifier ?? null,
+    manageUrl: info.managementURL ?? storeSubscriptionsUrl(entitlement?.productIdentifier),
+  };
+}
+
 export function buildRevenueCatSyncFromCustomerInfo(
   customerInfo: CustomerInfo,
   context: RevenueCatSyncContext
